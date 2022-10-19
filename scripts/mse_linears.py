@@ -132,7 +132,7 @@ def mean_squared_error_sgd(y, tx, initial_w, batch_size, max_iters, gamma):
         # TODO: implement stochastic gradient descent (n=1).
         # ***************************************************
         for y_, tx_ in batch_iter(y, tx, batch_size=batch_size, num_batches=1):
-            grad, _ = compute_gradient(y_, tx_, w)
+            grad = compute_gradient(y_, tx_, w)
             w = w - gamma*grad
             loss = compute_loss(y, tx, w)
 
