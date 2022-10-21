@@ -87,6 +87,51 @@ def mean_squared_error_sgd(y, tx, initial_w, batch_size, max_iters, gamma):
     return ws, losses
 
 
+def least_squares(y, tx, return_loss=True):
+    """Calculate the least squares solution.
+       returns mse, and optimal weights.
+    
+    Args:
+        y: numpy array of shape (N,), N is the number of samples.
+        tx: numpy array of shape (N,D), D is the number of features.
+        return_loss: whether return loss value
+    
+    Returns:
+        w: optimal weights, numpy array of shape(D,), D is the number of features.
+        mse: scalar.
+    """
+    inv = np.linalg.inv(tx.T.dot(tx))
+    w = (inv.dot(tx.T).dot(y))
+    if return_loss:
+        loss = compute_loss(y, tx, w, opt='mse')
+        return w, loss
+    return w
+
+def ridge_regression(y, tx, lambda_, return_loss=True):
+    """implement ridge regression.
+    
+    Args:
+        y: numpy array of shape (N,), N is the number of samples.
+        tx: numpy array of shape (N,D), D is the number of features.
+        lambda_: scalar
+        return_loss: bool
+    
+    Returns:
+        w: optimal weights, numpy array of shape(D,), D is the number of features.
+
+    >>> ridge_regression(np.array([0.1,0.2]), np.array([[2.3, 3.2], [1., 0.1]]), 0)
+    array([ 0.21212121, -0.12121212])
+    >>> ridge_regression(np.array([0.1,0.2]), np.array([[2.3, 3.2], [1., 0.1]]), 1)
+    array([0.03947092, 0.00319628])
+    """
+    D = tx.shape[1]
+
+    inv = np.linalg.inv(tx.T.dot(tx) + lambda_ * np.identity(D))
+    w = inv.dot(tx.T).dot(y)
+    if return_loss:
+        loss = compute_loss(y, tx, w, opt='mse')
+        return w, loss
+    return w
 
 def logistic_regression(y, tx, initial_w=None, max_iters=225000, gamma=2e-3):
     """
