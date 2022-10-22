@@ -1,4 +1,5 @@
 import logging
+import argparse
 
 from pprint import pprint
 from implementations import *
@@ -70,10 +71,9 @@ class ModelAggregator:
     def least_squares(self, tx_train, y_train, tx_val, y_val, weights, params):
         logits, loss = least_squares(y_train, tx_train)
         y_pred_train, train_loss = predict_binary(
-            y_train, tx_train, weights, loss_type="rmse")
+            y_train, tx_train, logits, loss_type="rmse")
         y_pred_val, val_loss = predict_binary(
-            y_val, tx_val, weights, loss_type="rmse")
-
+            y_val, tx_val, logits, loss_type="rmse")
         return{
             'logits': logits,
             'loss': loss,
@@ -83,14 +83,13 @@ class ModelAggregator:
             'val_loss': val_loss
         }
 
-    def ridge_regression(self, tx_train, y_train, tx_val, y_val, weights, params):
+    def ridge_regression(self, tx_train, y_train, tx_val, y_val, params):
         lambda_ = params['lambda']
         logits, loss = ridge_regression(y_train, tx_train, lambda_)
         y_pred_train, train_loss = predict_binary(
-            y_train, tx_train, weights, loss_type="rmse")
+            y_train, tx_train, logits, loss_type="rmse")
         y_pred_val, val_loss = predict_binary(
-            y_val, tx_val, weights, loss_type="rmse")
-
+            y_val, tx_val, logits, loss_type="rmse")
         return{
             'logits': logits,
             'loss': loss,
@@ -188,9 +187,14 @@ def cross_validation(
         tx_val = tx[start:end]
         y_val = y[start:end]
 
-        output_dict = model_aggregator.aggregator[model](
-            tx_train, y_train, tx_val, y_val, weights=weights[k], params=cv_params
-        )
+        if model in ['least_squares', 'ridge_regression']:
+            output_dict = model_aggregator.aggregator[model](
+                tx_train, y_train, tx_val, y_val, params=cv_params
+            )
+        else:
+            output_dict = model_aggregator.aggregator[model](
+                tx_train, y_train, tx_val, y_val, weights=weights[k], params=cv_params
+            )
 
         train_acc, tr_p, tr_r, tr_f1 = compute_prf_binary(
             y_train, output_dict["y_pred_train"]
@@ -231,6 +235,7 @@ class Trainer:
         self.tx = tx
         self.params = params
         self.k_fold = k_fold
+        self.init_w = init_w
         self.model = model
         self.monitor = monitor
         self.warmup_propotion = (k_fold - 1) / k_fold
@@ -294,8 +299,16 @@ class Trainer:
 
 
 if __name__ == "__main__":
+    # Create the parser
+    parser = argparse.ArgumentParser()
+    # Add an argument
+    parser.add_argument('--datadir', type=str, default="./data", required=False)
+    parser.add_argument('--model', type=str, default="logistic_regression", required=False)
+    # Parse the argument
+    args = parser.parse_args()
+
     print("loading data ...")
-    train_dataset = Dataset("./data", "train")
+    train_dataset = Dataset(args.datadir, "train")
     train_dataset.load_data()
 
     random_seed = 42
@@ -315,8 +328,8 @@ if __name__ == "__main__":
     max_iters = 100
 
     hyper_params = {
-        "gamma": gd_gamma,
-        # "lambda_": [1e-6, 1e-5, 1e-4, 1e-3, 0.01],
+        "gamma": sgd_gamma,
+        "lambda": [1e-6, 1e-5, 1e-4, 1e-3, 0.01],
         "num_epoch": [epochs_SGD],
         "max_iters": [max_iters],
         "batch_size": [batch_size],
@@ -326,13 +339,23 @@ if __name__ == "__main__":
     shuffled_y = labels[shuffle_idx]
     shuffled_tx = features[shuffle_idx]
 
-    trainer = Trainer(
-        tx=shuffled_tx,
-        y=shuffled_y,
-        params=hyper_params,
-        init_w=init_w,
-        k_fold=k_fold,
-        model="mean_square_error_gd",
-    )
-
-    trainer.train_with_loop()
+    if args.model in ['least_squares', 'ridge_regression']:
+        trainer = Trainer(
+            tx=shuffled_tx,
+            y=shuffled_y,
+            params=hyper_params,
+            init_w=init_w,
+            k_fold=k_fold,
+            model=args.model,
+        )
+        trainer.train_without_loop()
+    else:
+        trainer = Trainer(
+            tx=shuffled_tx,
+            y=shuffled_y,
+            params=hyper_params,
+            init_w=init_w,
+            k_fold=k_fold,
+            model=args.model,
+        )
+        trainer.train_with_loop()

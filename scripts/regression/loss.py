@@ -1,6 +1,6 @@
 import numpy as np
 
-from proj1_helpers import batch_iter
+from ..helpers import batch_iter
 
 
 def mse_loss(e):
