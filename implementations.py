@@ -118,8 +118,20 @@ def ridge_regression(y, tx, lambda_):
     return w, loss
 
 
+def sigmoid(t):
+    """apply sigmoid function on t.
+
+    Args:
+        t: scalar or numpy array
+
+    Returns:
+        scalar or numpy array
+    """
+    return 1 / (1 + np.exp(-t))
+
+
 def logistic_regression(
-    y, tx, initial_w=None, max_iters=225000, gamma=2e-3, batch_size=None
+    y, tx, initial_w=None, max_iters=225000, gamma=2e-3, batch_size=1, sgd=False
 ):
     """
     Logistic regression using GD or SGD.
@@ -138,24 +150,31 @@ def logistic_regression(
 
     losses = []
     w = initial_w
-    batch_size = len(y) if batch_size is None else batch_size
-    for n_iter in range(max_iters):
-        for y_batch, tx_batch in batch_iter(
-            y, tx, batch_size=batch_size, num_batches=1, shuffle=True
-        ):
-            logit = tx_batch.dot(w)
-            loss = np.mean(np.log(1 + np.exp(logit)) - y_batch * logit)
-            gradient = tx_batch.T.dot(
-                np.exp(logit) / (1 + np.exp(logit)) - y_batch)
+
+    if not sgd:
+        for n_iter in range(max_iters):
+            logit = tx.dot(w)
+            gradient = tx.T.dot(sigmoid(logit) - y) / len(y)
             w = w - (gamma * gradient)
-            print("loss: {}".format(loss))
-            print("w: {}".format(w))
+            logit = tx.dot(w)
+            loss = np.mean(np.log(1 + np.exp(logit)) - y * logit)
             losses.append(loss)
+    else:
+        for n_iter in range(max_iters):
+            for y_batch, tx_batch in batch_iter(
+                y, tx, batch_size=batch_size, num_batches=1, shuffle=True
+            ):
+                logit = tx_batch.dot(w)
+                loss = np.mean(np.log(1 + np.exp(logit)) - y_batch * logit)
+                gradient = tx_batch.T.dot(
+                    sigmoid(logit) - y_batch)
+                w = w - (gamma * gradient)
+                losses.append(loss)
     return w, losses[-1]
 
 
 def reg_logistic_regression(
-    y, tx, lambda_=1e-5, initial_w=None, max_iters=225000, gamma=2e-3, batch_size=None
+    y, tx, lambda_=1e-5, initial_w=None, max_iters=225000, gamma=2e-3, batch_size=1, sgd=False,
 ):
     """
     Regularized logistic regression using SGD.
@@ -175,18 +194,26 @@ def reg_logistic_regression(
 
     losses = []
     w = initial_w
-    batch_size = len(y) if batch_size is None else batch_size
-    for n_iter in range(max_iters):
-        for y_batch, tx_batch in batch_iter(
-            y, tx, batch_size=batch_size, num_batches=1, shuffle=True
-        ):
-            logit = tx_batch.dot(w)
-            loss = np.mean(np.log(1 + np.exp(logit)) - y_batch * logit)
-            gradient = (
-                np.dot(tx_batch.T, (np.exp(logit) /
-                       (1 + np.exp(logit)) - y_batch))
-                + lambda_ * w
-            )
+
+    if not sgd:
+        for n_iter in range(max_iters):
+            logit = tx.dot(w)
+            gradient = (tx.T.dot(sigmoid(logit) - y) /
+                        len(y)) + 2 * lambda_ * w
             w = w - (gamma * gradient)
+            logit = tx.dot(w)
+            loss = np.mean(np.log(1 + np.exp(logit)) - y *
+                           logit)
             losses.append(loss)
+    else:
+        for n_iter in range(max_iters):
+            for y_batch, tx_batch in batch_iter(
+                y, tx, batch_size=batch_size, num_batches=1, shuffle=True
+            ):
+                logit = tx_batch.dot(w)
+                loss = np.mean(np.log(1 + np.exp(logit)) - y_batch * logit)
+                gradient = tx_batch.T.dot(
+                    sigmoid(logit) - y_batch) + 2 * lambda_ * w
+                w = w - (gamma * gradient)
+                losses.append(loss)
     return w, losses[-1]
