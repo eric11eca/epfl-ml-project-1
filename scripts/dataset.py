@@ -1,10 +1,9 @@
 import numpy as np
-
 from scripts.helpers import load_csv_data
 
 
 class Dataset:
-    def __init__(self, data_pth, data_type):
+    def __init__(self, data_pth, data_type, imputation_method='mean'):
         self.data_pth = f"{data_pth}/{data_type}.csv"
         self.data_type = data_type
 
@@ -20,6 +19,8 @@ class Dataset:
 
         self.col_names = self.read_col_names()
         self.num_cols = len(self.col_names)
+
+        self.imputation_method = imputation_method
 
     def load_data(self):
         """Load the data from the csv file."""
@@ -56,10 +57,18 @@ class Dataset:
                 col_data[col_data == -
                          999.0] = np.nanmedian(col_data[col_data != -999.0])
                 col_data[np.isnan(col_data)] = np.nanmedian(col_data)
+            elif method == 'category_mean':
+                self.get_cat_mean()
+                for row in range(self.data.shape[0]):
+                    self.data[100][self.data[100]==-999]= self.cat_mean[self.labels[100]][self.data[100]==-999]
+            elif method == 'category_median':
+                self.get_cat_mean()
+                for row in range(self.data.shape[0]):
+                    self.data[100][self.data[100]==-999]= self.cat_median[self.labels[100]][self.data[100]==-999]
             else:
                 col_data[col_data == -999.0] = 0.0
                 col_data[np.isnan(col_data)] = 0.0
-
+                
     def data_normalization(self):
         """Normalize the data, zero-mean and standardization."""
 
@@ -95,6 +104,22 @@ class Dataset:
             assert self.labels.shape[0] == self.data.shape[0]
             assert self.ids.shape[0] == self.data.shape[0]
 
+    def get_cat_mean(self):
+        NAN_VALUE = -999
+        # 'category_mean', 'category_median'
+        self.cat_mean = {}
+        self.cat_median = {}
+        self.cat_ids = {cat:[i for i in range(len(self.labels)) if self.labels[i]==cat] for cat in np.unique(self.labels)}
+
+
+        for col in range(self.data.shape[1]):
+            for cat, ids in self.cat_ids.items():
+                col_data = self.data[:, col][ids]
+                if cat not in self.cat_mean.keys():
+                    self.cat_mean[cat] = np.zeros(self.data.shape[1])
+                    self.cat_median[cat] = np.zeros(self.data.shape[1])
+                self.cat_mean[cat][col]=np.mean(col_data[col_data!=NAN_VALUE])
+                self.cat_median[cat][col]=np.median(col_data[col_data!=NAN_VALUE])
 
     def data_polynomial(self, degree):
         
@@ -120,15 +145,3 @@ class Dataset:
 # stack polynomial data + original data + categorical data
         self.poly_full_data = np.c_[self.poly_data, self.category_data]
         self.poly_full_col_names = self.poly_col_names + self.category_col_names
-
-
-
-
-
-
-
-        
-
-        
-
-        
