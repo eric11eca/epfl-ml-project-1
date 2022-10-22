@@ -130,3 +130,6 @@ dmypy.json
 
 # Large data file
 *.csv
+
+# log data
+log/

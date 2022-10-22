@@ -5,6 +5,7 @@ from pprint import pprint
 from implementations import *
 from scripts.helpers import *
 from scripts.dataset import *
+from scripts.visualization import *
 
 logging.basicConfig(
     filename="file.log",
@@ -150,7 +151,9 @@ class ModelAggregator:
 
 
 def cross_validation(
-    tx, y, init_w=None, k_fold=10, cv_params=None, model="logistic_regression"
+    tx, y, init_w=None, k_fold=10, 
+    cv_params=None, 
+    model="logistic_regression", 
 ):
     """
     Cross validation for the given model
@@ -216,7 +219,6 @@ def cross_validation(
 
     for key in metric_log.keys():
         metric_log[key] = np.mean(metric_log[key])
-
     return weights, metric_log
 
 
@@ -242,11 +244,13 @@ class Trainer:
         self.weights = [init_w for i in range(k_fold)]
         self.param_grid = build_parameter_grid(params)
 
+        self.fig_path = f"./log/{model}_k{k_fold}.pdf"
         file_path = f"./log/{model}_k{k_fold}.jsonl"
 
-    def train_with_loop(self):
+    def train_with_loop(self, save_fig=False):
         best_metric = 0.0
         best_params = {}
+        training_metric_log = {}
 
         for config in self.param_grid:
             # num_epoch = config["num_epoch"]
@@ -265,6 +269,12 @@ class Trainer:
 
             print(f"Finish Validation: {metric_log}")
 
+            # record metric 
+            for met, value in metric_log.items():
+                if met not in training_metric_log.keys():
+                    training_metric_log[met] = []
+                training_metric_log[met].append(value)
+
             if metric_log[self.monitor] > best_metric:
                 print(
                     f"New best {self.monitor} found: {metric_log[self.monitor]}")
@@ -272,10 +282,13 @@ class Trainer:
                 best_params = config
 
             print(f"current best params: {best_params}")
+            
+        if save_fig:
+            plot_training_stats(training_metric_log, save_path=self.fig_path)
 
             #  save best parameters
 
-    def train_without_loop(self):
+    def train_without_loop(self, save_fig=False):
         best_metric = 0.0
         best_params = {}
 
@@ -296,7 +309,8 @@ class Trainer:
                 best_params = config
 
                 #  save best parameters
-
+        if save_fig:
+            plot_training_stats(metric_log, save_path=self.fig_path)
 
 if __name__ == "__main__":
     # Create the parser
