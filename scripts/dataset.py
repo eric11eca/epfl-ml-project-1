@@ -12,6 +12,12 @@ class Dataset:
         self.labels = []
         self.ids = []
 
+        self.poly_degree = None
+        self.poly_data = []
+        self.poly_col_names = None
+        self.poly_full_data = []
+        self.poly_full_col_names = None
+
         self.col_names = self.read_col_names()
         self.num_cols = len(self.col_names)
 
@@ -22,6 +28,9 @@ class Dataset:
         self.ids = ids
         self.labels = y
         self.data = tX
+
+        self.category_data = self.category_feature()
+        self.category_col_names = ['jetnum3', 'jetnum2', 'jetnum1', 'jetnum0']
 
         self.data_imputation()
         self.data_normalization()
@@ -69,6 +78,9 @@ class Dataset:
 
         jet_num_col = self.col_names.index("PRI_jet_num")
 
+        return jet_num_one_hot
+
+
     def filter_outliers(self, m=10):
         """
         Filter out outliers over mean +/- m * std>
@@ -82,3 +94,41 @@ class Dataset:
 
             assert self.labels.shape[0] == self.data.shape[0]
             assert self.ids.shape[0] == self.data.shape[0]
+
+
+    def data_polynomial(self, degree):
+        
+        degree = self.poly_degree
+        poly_data = []
+        poly_col_names = []
+
+        for i in range(self.num_cols):
+            col_name = self.col_names[i]
+            col = self.data[:, i]
+
+            poly = [col**j for j in range(1, degree+1)]
+            poly_name = [col_name.replace('\n','')+'_'+str(j) for j in range(1, degree+1)]
+
+            poly_data += poly
+            poly_col_names += poly_name
+# polynomial + original data
+        self.poly_data = np.stack(poly_data)
+        self.poly_data = self.poly_data.T
+        self.poly_col_names = poly_col_names
+
+
+# stack polynomial data + original data + categorical data
+        self.poly_full_data = np.c_[self.poly_data, self.category_data]
+        self.poly_full_col_names = self.poly_col_names + self.category_col_names
+
+
+
+
+
+
+
+        
+
+        
+
+        
