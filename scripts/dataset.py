@@ -1,19 +1,23 @@
+from unicodedata import category
 import numpy as np
 from scripts.helpers import load_csv_data
 
 
 class Dataset:
-    def __init__(self, data_pth, data_type, imputation_method='mean'):
+    def __init__(self, data_pth, data_type, imputation_method='mean', poly_degree=4):
         self.data_pth = f"{data_pth}/{data_type}.csv"
         self.data_type = data_type
 
         self.data = []
         self.labels = []
         self.ids = []
+        self.category_data = []
 
-        self.poly_degree = None
+        self.poly_degree = poly_degree
         self.poly_data = []
         self.poly_col_names = None
+
+        # after concatenating categorical variables
         self.poly_full_data = []
         self.poly_full_col_names = None
 
@@ -30,10 +34,9 @@ class Dataset:
         self.labels = y
         self.data = tX
 
-        self.category_data = self.category_feature()
-        self.category_col_names = ['jetnum3', 'jetnum2', 'jetnum1', 'jetnum0']
-
+        self.category_feature()
         self.data_imputation()
+        self.data_polynomial()
         self.data_normalization()
         self.filter_outliers()
 
@@ -79,16 +82,21 @@ class Dataset:
     def category_feature(self):
         """Create new features based on the category feature."""
         jet_num_one_hot = {
-            "0": [0.0, 0.0, 0.0, 1.0],
-            "1": [0.0, 0.0, 1.0, 0.0],
-            "2": [0.0, 1.0, 0.0, 0.0],
-            "3": [1.0, 0.0, 0.0, 0.0]
+            0: [0.0, 0.0, 0.0, 1.0],
+            1: [0.0, 0.0, 1.0, 0.0],
+            2: [0.0, 1.0, 0.0, 0.0],
+            3: [1.0, 0.0, 0.0, 0.0]
         }
 
         jet_num_col = self.col_names.index("PRI_jet_num")
+        category_col_names = ['jetnum3', 'jetnum2', 'jetnum1', 'jetnum0']
 
-        return jet_num_one_hot
+        # category val is in col 22
+        category_data = self.data[:, 22]
+        self.category_data = np.array(list(map(lambda x: jet_num_one_hot[x], category_data)))
 
+        self.col_names = self.col_names + category_col_names
+        self.data = np.c_[self.data, self.category_data]
 
     def filter_outliers(self, m=10):
         """
@@ -121,13 +129,13 @@ class Dataset:
                 self.cat_mean[cat][col]=np.mean(col_data[col_data!=NAN_VALUE])
                 self.cat_median[cat][col]=np.median(col_data[col_data!=NAN_VALUE])
 
-    def data_polynomial(self, degree):
+    def data_polynomial(self, degree=None):
         
-        degree = self.poly_degree
+        degree = degree if degree else self.poly_degree
         poly_data = []
         poly_col_names = []
 
-        for i in range(self.num_cols):
+        for i in range(self.data.shape[1]):
             col_name = self.col_names[i]
             col = self.data[:, i]
 
@@ -141,7 +149,6 @@ class Dataset:
         self.poly_data = self.poly_data.T
         self.poly_col_names = poly_col_names
 
-
 # stack polynomial data + original data + categorical data
         self.poly_full_data = np.c_[self.poly_data, self.category_data]
-        self.poly_full_col_names = self.poly_col_names + self.category_col_names
+        # self.poly_full_col_names = self.poly_col_names + self.category_col_names
