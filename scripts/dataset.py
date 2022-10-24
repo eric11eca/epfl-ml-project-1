@@ -12,6 +12,7 @@ class Dataset:
         self.labels = []
         self.ids = []
         self.category_data = []
+        self.category_col_names = []
 
         self.poly_degree = poly_degree
         self.poly_data = []
@@ -89,13 +90,13 @@ class Dataset:
         }
 
         jet_num_col = self.col_names.index("PRI_jet_num")
-        category_col_names = ['jetnum3', 'jetnum2', 'jetnum1', 'jetnum0']
+        self.category_col_names = ['jetnum3', 'jetnum2', 'jetnum1', 'jetnum0']
 
         # category val is in col 22
         category_data = self.data[:, 22]
         self.category_data = np.array(list(map(lambda x: jet_num_one_hot[x], category_data)))
 
-        self.col_names = self.col_names + category_col_names
+        self.col_names = self.col_names + self.category_col_names
         self.data = np.c_[self.data, self.category_data]
 
     def filter_outliers(self, m=10):
@@ -151,4 +152,4 @@ class Dataset:
 
 # stack polynomial data + original data + categorical data
         self.poly_full_data = np.c_[self.poly_data, self.category_data]
-        # self.poly_full_col_names = self.poly_col_names + self.category_col_names
+        self.poly_full_col_names = self.poly_col_names + self.category_col_names
