@@ -1,14 +1,10 @@
 import logging
-import argparse
 
-from pprint import pprint
 from implementations import *
 from scripts.helpers import *
 from scripts.dataset import *
-from scripts.visualization import *
 
 logging.basicConfig(
-    filename="file.log",
     level=logging.DEBUG,
     format="%(asctime)s:%(levelname)s:%(name)s:%(message)s",
 )
@@ -18,25 +14,36 @@ logger = logging.getLogger("runner")
 class ModelAggregator:
     def __init__(self):
         self.aggregator = {
-            "mean_square_error_gd": self.mean_square_error_gd,
-            "mean_square_error_sgd": self.mean_square_error_sgd,
+            "mse_gd": self.mean_square_error_gd,
+            "mse_sgd": self.mean_square_error_sgd,
             'least_squares': self.least_squares,
-            'ridge_regression': self.ridge_regression,
-            "logistic_regression": self.logistic_regression,
-            "reg_logistic_regression": self.reg_logistic_regression,
+            'ridge': self.ridge_regression,
+            "logistic": self.logistic_regression,
+            "reg_logistic": self.reg_logistic_regression,
         }
 
     def mean_square_error_gd(self, tx_train, y_train, tx_val, y_val, weights, params):
         max_iters = params["max_iters"]
         gamma = params["gamma"]
         logits, loss = mean_squared_error_gd(
-            y_train, tx_train, weights, max_iters, gamma
+            y=y_train,
+            tx=tx_train,
+            initial_w=weights,
+            max_iters=max_iters,
+            gamma=gamma
         )
         y_pred_train, train_loss = predict_binary(
-            y_train, tx_train, logits, loss_type="mse"
+            y_train,
+            tx_train,
+            w=logits,
+            loss_type="mse"
         )
         y_pred_val, val_loss = predict_binary(
-            y_val, tx_val, logits, loss_type="mse")
+            y_val,
+            tx_val,
+            w=logits,
+            loss_type="mse"
+        )
 
         return {
             "logits": logits,
@@ -52,13 +59,25 @@ class ModelAggregator:
         gamma = params["gamma"]
         batch_size = params["batch_size"]
         logits, loss = mean_squared_error_sgd(
-            y_train, tx_train, weights, batch_size, max_iters, gamma
+            y=y_train,
+            tx=tx_train,
+            initial_w=weights,
+            max_iters=max_iters,
+            gamma=gamma,
+            batch_size=batch_size
         )
         y_pred_train, train_loss = predict_binary(
-            y_train, tx_train, weights, loss_type="mse"
+            y_train,
+            tx_train,
+            w=logits,
+            loss_type="mse"
         )
         y_pred_val, val_loss = predict_binary(
-            y_val, tx_val, weights, loss_type="mse")
+            y_val,
+            tx_val,
+            w=logits,
+            loss_type="mse"
+        )
 
         return {
             "logits": logits,
@@ -75,6 +94,7 @@ class ModelAggregator:
             y_train, tx_train, logits, loss_type="rmse")
         y_pred_val, val_loss = predict_binary(
             y_val, tx_val, logits, loss_type="rmse")
+
         return{
             'logits': logits,
             'loss': loss,
@@ -84,13 +104,14 @@ class ModelAggregator:
             'val_loss': val_loss
         }
 
-    def ridge_regression(self, tx_train, y_train, tx_val, y_val, params):
+    def ridge_regression(self, tx_train, y_train, tx_val, y_val, weights, params):
         lambda_ = params['lambda']
         logits, loss = ridge_regression(y_train, tx_train, lambda_)
         y_pred_train, train_loss = predict_binary(
             y_train, tx_train, logits, loss_type="rmse")
         y_pred_val, val_loss = predict_binary(
             y_val, tx_val, logits, loss_type="rmse")
+
         return{
             'logits': logits,
             'loss': loss,
@@ -106,10 +127,10 @@ class ModelAggregator:
         logits, loss = logistic_regression(
             y_train, tx_train, weights, max_iters, gamma)
         y_pred_train, train_loss = predict_binary(
-            y_train, tx_train, weights, loss_type="logistic"
+            y_train, tx_train, logits, loss_type="logistic"
         )
         y_pred_val, val_loss = predict_binary(
-            y_val, tx_val, weights, loss_type="logistic"
+            y_val, tx_val, logits, loss_type="logistic"
         )
 
         return {
@@ -131,10 +152,10 @@ class ModelAggregator:
             y_train, tx_train, weights, lambda_, max_iters, gamma
         )
         y_pred_train, train_loss = predict_binary(
-            y_train, tx_train, weights, loss_type="logistic"
+            y_train, tx_train, logits, loss_type="logistic"
         )
         y_pred_val, val_loss = predict_binary(
-            y_val, tx_val, weights, loss_type="logistic"
+            y_val, tx_val, logits, loss_type="logistic"
         )
 
         return {
@@ -151,33 +172,28 @@ class ModelAggregator:
 
 
 def cross_validation(
-    tx, y, init_w=None, k_fold=10, 
-    cv_params=None, 
-    model="logistic_regression", 
+    tx, y, init_w=None, k_fold=10, cv_params=None, model="logistic_regression"
 ):
     """
     Cross validation for the given model
     """
-
-    metric_log = {
-        "train_loss": [],
-        "val_loss": [],
-        "train_acc": [],
-        "val_acc": [],
-        "train_f1": [],
-        "val_f1": [],
-        "train_precision": [],
-        "val_precision": [],
-        "train_recall": [],
-        "val_recall": [],
-    }
-
     if init_w is not None:
         weights = init_w
     else:
         weights = [np.zeros(tx.shape[1]) for _ in range(k_fold)]
 
+    metric_log = {
+        "train_loss": [],
+        "val_loss": 1000 * np.ones(k_fold),
+        "train_acc": [],
+        "val_acc": np.zeros(k_fold),
+        "val_f1": np.zeros(k_fold),
+        "val_precision": np.zeros(k_fold),
+        "val_recall": np.zeros(k_fold)
+    }
+
     model_aggregator = ModelAggregator()
+    best_weights = weights
 
     for k in range(k_fold):
         print(f"Cross validation: fold {k}")
@@ -190,36 +206,42 @@ def cross_validation(
         tx_val = tx[start:end]
         y_val = y[start:end]
 
-        if model in ['least_squares', 'ridge_regression']:
+        monitor = cv_params["monitor"]
+
+        for epoch in range(cv_params["epochs"]):
+            print(f"Epoch: {epoch}, num_steps: {cv_params['max_iters']}")
             output_dict = model_aggregator.aggregator[model](
-                tx_train, y_train, tx_val, y_val, params=cv_params
-            )
-        else:
-            output_dict = model_aggregator.aggregator[model](
-                tx_train, y_train, tx_val, y_val, weights=weights[k], params=cv_params
+                tx_train, y_train, tx_val, y_val,
+                weights=weights[k], params=cv_params
             )
 
-        train_acc, tr_p, tr_r, tr_f1 = compute_prf_binary(
-            y_train, output_dict["y_pred_train"]
-        )
-        val_acc, va_p, va_r, va_f1 = compute_prf_binary(
-            y_val, output_dict["y_pred_val"]
-        )
+            train_acc, tr_p, tr_r, tr_f1 = compute_prf_binary(
+                y_train, output_dict["y_pred_train"]
+            )
+            val_acc, va_p, va_r, va_f1 = compute_prf_binary(
+                y_val, output_dict["y_pred_val"]
+            )
 
-        metric_log["train_loss"].append(output_dict["train_loss"])
-        metric_log["val_loss"].append(output_dict["val_loss"])
-        metric_log["train_acc"].append(train_acc)
-        metric_log["train_precision"].append(tr_p)
-        metric_log["train_recall"].append(tr_r)
-        metric_log["train_f1"].append(tr_f1)
-        metric_log["val_acc"].append(val_acc)
-        metric_log["val_precision"].append(va_p)
-        metric_log["val_recall"].append(va_r)
-        metric_log["val_f1"].append(va_f1)
+            print(
+                f"Epoch: {epoch}, val_acc: {val_acc}, val_loss: {output_dict['val_loss']}")
+            weights[k] = output_dict["logits"]
+            metric_log["train_loss"].append(output_dict["train_loss"])
+            metric_log["train_acc"].append(train_acc)
+
+            if val_acc > metric_log["val_acc"][k]:
+                print("====================================================")
+                print(f"Find best val_acc: {val_acc}. Best weights updated")
+                best_weights[k] = weights[k]
+                metric_log["val_acc"][k] = val_acc
+                metric_log["val_f1"][k] = va_f1
+                metric_log["val_precision"][k] = va_p
+                metric_log["val_recall"][k] = va_r
+                metric_log["val_loss"][k] = output_dict["val_loss"]
 
     for key in metric_log.keys():
         metric_log[key] = np.mean(metric_log[key])
-    return weights, metric_log
+
+    return weights, best_weights, metric_log
 
 
 class Trainer:
@@ -230,35 +252,28 @@ class Trainer:
         params=None,
         init_w=None,
         k_fold=10,
-        model="logistic_regression",
-        monitor="val_acc",
+        model="reg_logistic",
+        save_fig=False,
     ):
         self.y = y
         self.tx = tx
         self.params = params
         self.k_fold = k_fold
-        self.init_w = init_w
         self.model = model
-        self.monitor = monitor
-        self.warmup_propotion = (k_fold - 1) / k_fold
+        self.save_fig = save_fig
+        self.monitor = params['monitor'][0]
         self.weights = [init_w for i in range(k_fold)]
         self.param_grid = build_parameter_grid(params)
+        self.checkpoint = f"./log/{model}_{k_fold}fold_cv_best.json"
 
-        self.fig_path = f"./log/{model}_k{k_fold}.pdf"
-        file_path = f"./log/{model}_k{k_fold}.jsonl"
-
-    def train_with_loop(self, save_fig=False):
+    def train(self):
         best_metric = 0.0
         best_params = {}
-        training_metric_log = {}
 
         for config in self.param_grid:
-            # num_epoch = config["num_epoch"]
-
             print(f"Cross validation {self.model} with {config}")
 
-            # for epoch in range(num_epoch):
-            weights, metric_log = cross_validation(
+            weights, best_weights, metric_log = cross_validation(
                 tx=self.tx,
                 y=self.y,
                 init_w=self.weights,
@@ -269,107 +284,100 @@ class Trainer:
 
             print(f"Finish Validation: {metric_log}")
 
-            # record metric 
-            for met, value in metric_log.items():
-                if met not in training_metric_log.keys():
-                    training_metric_log[met] = []
-                training_metric_log[met].append(value)
-
             if metric_log[self.monitor] > best_metric:
                 print(
                     f"New best {self.monitor} found: {metric_log[self.monitor]}")
                 best_metric = metric_log[self.monitor]
                 best_params = config
+                write_json({
+                    "best_params": best_params,
+                    self.monitor: metric_log[self.monitor],
+                    "k_best_weights": [w.tolist() for w in best_weights]
+                }, self.checkpoint)
 
             print(f"current best params: {best_params}")
-            
-        if save_fig:
-            plot_training_stats(training_metric_log, save_path=self.fig_path)
 
-            #  save best parameters
+    def eval(self, tx_test, ids_test):
+        print(f"Load best weights from {self.checkpoint}")
+        checkpoint = read_json(self.checkpoint)
+        best_weights = checkpoint["k_best_weights"]
 
-    def train_without_loop(self, save_fig=False):
-        best_metric = 0.0
-        best_params = {}
+        if "logistic" in self.model:
+            model_type = "logistic"
+        else:
+            model_type = "linear"
 
-        for config in self.param_grid:
-            weights, metric_log = cross_validation(
-                tx=self.tx,
-                y=self.y,
-                init_w=self.init_w,
-                k_fold=self.k_fold,
-                cv_params=config,
-                model=self.model,
+        print(f"Test set evaluation")
+
+        for k in range(self.k_fold):
+            test_preds = predict_binary_test(
+                tx=tx_test,
+                w=best_weights[k],
+                model_type=model_type
             )
+            write_results_test(
+                f"./output/{self.model}_fold_{k}_test_out.csv", ids_test, test_preds)
 
-            if metric_log[self.monitor] > best_metric:
-                print(
-                    f"New best {self.monitor} found: {metric_log[self.monitor]}")
-                best_metric = metric_log[self.monitor]
-                best_params = config
-
-                #  save best parameters
-        if save_fig:
-            plot_training_stats(metric_log, save_path=self.fig_path)
 
 if __name__ == "__main__":
-    # Create the parser
-    parser = argparse.ArgumentParser()
-    # Add an argument
-    parser.add_argument('--datadir', type=str, default="./data", required=False)
-    parser.add_argument('--model', type=str, default="logistic_regression", required=False)
-    # Parse the argument
-    args = parser.parse_args()
-
-    print("loading data ...")
-    train_dataset = Dataset(args.datadir, "train")
+    logger.info("loading data ...")
+    train_dataset = Dataset("./data", "train")
+    test_dataset = Dataset("./data", "test")
     train_dataset.load_data()
+    test_dataset.load_data()
 
     random_seed = 42
     np.random.seed(random_seed)
 
+    ids = train_dataset.ids
     labels = train_dataset.labels
     features = train_dataset.data
-    init_w = np.random.uniform(low=-2.0, high=2.0, size=features.shape[1])
-
-    gd_gamma = [0.01, 0.05, 0.1, 0.25, 0.5]
-    sgd_gamma = [2e-3]  # [5e-4, 1e-3, 2e-3, 5e-3, 0.01]
-    epochs_GD = 100
-    epochs_SGD = 10
-    k_fold = 10
-    batch_size = 64
-    warmup_propotion = (k_fold - 1) / k_fold
-    max_iters = 100
-
-    hyper_params = {
-        "gamma": sgd_gamma,
-        "lambda": [1e-6, 1e-5, 1e-4, 1e-3, 0.01],
-        "num_epoch": [epochs_SGD],
-        "max_iters": [max_iters],
-        "batch_size": [batch_size],
-    }
-
     shuffle_idx = np.random.permutation(np.arange(len(labels)))
     shuffled_y = labels[shuffle_idx]
     shuffled_tx = features[shuffle_idx]
+    init_w = np.random.uniform(low=-2.0, high=2.0, size=features.shape[1])
+    model = "logistic"
 
-    if args.model in ['least_squares', 'ridge_regression']:
-        trainer = Trainer(
-            tx=shuffled_tx,
-            y=shuffled_y,
-            params=hyper_params,
-            init_w=init_w,
-            k_fold=k_fold,
-            model=args.model,
-        )
-        trainer.train_without_loop()
+    gd_gamma = [0.01, 0.05, 0.1, 0.25, 0.5]
+    sgd_gamma = [5e-4, 1e-3, 2e-3, 5e-3, 0.01]
+    k_fold = 4
+    batch_size = 100
+    warmup_propotion = (k_fold - 1) / k_fold
+
+    hyper_params = {
+        "batch_size": [batch_size],
+        "monitor": ["val_acc"],
+    }
+
+    if model in ["mse_sgd", "logistic", "reg_logistic"]:
+        split_rate = (k_fold - 1) / k_fold
+        hyper_params["max_iters"] = [int(
+            split_rate * len(shuffled_y) / batch_size)]
+        hyper_params["epochs"] = [10]
+        hyper_params["gamma"] = sgd_gamma
+    elif model == "mse_gd":
+        hyper_params["max_iters"] = [1]
+        hyper_params["epochs"] = [200]
+        hyper_params["gamma"] = gd_gamma
     else:
-        trainer = Trainer(
-            tx=shuffled_tx,
-            y=shuffled_y,
-            params=hyper_params,
-            init_w=init_w,
-            k_fold=k_fold,
-            model=args.model,
-        )
-        trainer.train_with_loop()
+        hyper_params["epochs"] = [1]
+        hyper_params["max_iters"] = [1]
+
+    if model in ["ridge", "reg_logistic"]:
+        hyper_params["lambda"] = [1e-6, 1e-5, 1e-4, 1e-3, 0.01]
+
+    trainer = Trainer(
+        tx=shuffled_tx,
+        y=shuffled_y,
+        params=hyper_params,
+        init_w=init_w,
+        k_fold=k_fold,
+        model=model,
+    )
+
+    # trainer.train()
+
+    test_features = test_dataset.data
+    test_ids = test_dataset.ids
+
+    trainer.eval(test_features, test_ids)
