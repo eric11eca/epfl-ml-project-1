@@ -1,14 +1,9 @@
 import numpy as np
-import copy
 
+from tqdm import tqdm
 from scripts.helpers import *
 from scripts.regression.loss import *
 from scripts.regression.gradient import *
-
-
-"""
-Gradient Descent
-"""
 
 
 def mean_squared_error_gd(y, tx, initial_w=None, max_iters=100, gamma=0.25):
@@ -33,15 +28,9 @@ def mean_squared_error_gd(y, tx, initial_w=None, max_iters=100, gamma=0.25):
         e = y - tx.dot(w)
         grad = (-1/len(y)) * tx.T.dot(e)
         w = w - gamma * grad
-        e = y - tx.dot(w)
-        loss = 1/2 * np.mean(e**2)
+        loss = compute_loss(y, tx, w)
         losses.append(loss)
     return w, losses[-1]
-
-
-"""
-Stochastic Gradient Descent
-"""
 
 
 def mean_squared_error_sgd(
@@ -61,7 +50,7 @@ def mean_squared_error_sgd(
     """
     losses = []
     w = initial_w
-    for n_iter in range(max_iters):
+    for n_iter in tqdm(range(max_iters)):
         for y_batch, tx_batch in batch_iter(
             y, tx, batch_size=batch_size, num_batches=1, shuffle=True
         ):
@@ -118,18 +107,6 @@ def ridge_regression(y, tx, lambda_):
     return w, loss
 
 
-def sigmoid(t):
-    """apply sigmoid function on t.
-
-    Args:
-        t: scalar or numpy array
-
-    Returns:
-        scalar or numpy array
-    """
-    return 1 / (1 + np.exp(-t))
-
-
 def logistic_regression(
     y, tx, initial_w=None, max_iters=225000, gamma=2e-3, batch_size=1, sgd=False
 ):
@@ -160,7 +137,7 @@ def logistic_regression(
             loss = np.mean(np.log(1 + np.exp(logit)) - y * logit)
             losses.append(loss)
     else:
-        for n_iter in range(max_iters):
+        for n_iter in tqdm(range(max_iters)):
             for y_batch, tx_batch in batch_iter(
                 y, tx, batch_size=batch_size, num_batches=1, shuffle=True
             ):
@@ -206,7 +183,7 @@ def reg_logistic_regression(
                            logit)
             losses.append(loss)
     else:
-        for n_iter in range(max_iters):
+        for n_iter in tqdm(range(max_iters)):
             for y_batch, tx_batch in batch_iter(
                 y, tx, batch_size=batch_size, num_batches=1, shuffle=True
             ):
