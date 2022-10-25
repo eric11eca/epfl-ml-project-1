@@ -1,4 +1,5 @@
 import logging
+import argparse
 
 from implementations import *
 from scripts.helpers import *
@@ -320,11 +321,22 @@ class Trainer:
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--data_dir", type=str, default="./data",
+                        help="Directory of the train and test data")
+    parser.add_argument("--model", type=str, default="reg_logistic",
+                        help="machine learning model type")
+    parser.add_argument("--k_fold", type=int, default=5,
+                        help="number of folds for cross validation")
+    parser.add_argument("--save_fig", default=False, action="store_true",
+                        help="save figure")
+    parser.add_argument("--do_train", default=False, action="store_true")
+    parser.add_argument("--do_eval", default=False, action="store_true")
+    args = parser.parse_args()
+
     logger.info("loading data ...")
-    train_dataset = Dataset("./data", "train")
-    test_dataset = Dataset("./data", "test")
+    train_dataset = Dataset(args.data_dir, "train")
     train_dataset.load_data()
-    test_dataset.load_data()
 
     random_seed = 42
     np.random.seed(random_seed)
@@ -335,14 +347,14 @@ if __name__ == "__main__":
     shuffle_idx = np.random.permutation(np.arange(len(labels)))
     shuffled_y = labels[shuffle_idx]
     shuffled_tx = features[shuffle_idx]
-    init_w = np.random.uniform(low=-2.0, high=2.0, size=features.shape[1])
-    model = "logistic"
 
+    init_w = np.random.uniform(low=-2.0, high=2.0, size=features.shape[1])
+
+    model = args.model
     gd_gamma = [0.01, 0.05, 0.1, 0.25, 0.5]
     sgd_gamma = [5e-4, 1e-3, 2e-3, 5e-3, 0.01]
-    k_fold = 4
+    k_fold = args.k_fold
     batch_size = 100
-    warmup_propotion = (k_fold - 1) / k_fold
 
     hyper_params = {
         "batch_size": [batch_size],
@@ -375,9 +387,12 @@ if __name__ == "__main__":
         model=model,
     )
 
-    # trainer.train()
+    if args.do_train:
+        trainer.train()
 
-    test_features = test_dataset.data
-    test_ids = test_dataset.ids
-
-    trainer.eval(test_features, test_ids)
+    if args.do_eval:
+        test_dataset = Dataset(args.data_dir, "test")
+        test_features = test_dataset.data
+        test_ids = test_dataset.ids
+        test_dataset.load_data()
+        trainer.eval(test_features, test_ids)
