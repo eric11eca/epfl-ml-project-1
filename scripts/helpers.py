@@ -1,9 +1,47 @@
 # -*- coding: utf-8 -*-
 """some helper functions for project 1."""
+
+import json
 import csv
 import numpy as np
 
 from itertools import product
+
+
+def read_file(path, mode="r", **kwargs):
+    with open(path, mode=mode, **kwargs) as f:
+        return f.read()
+
+
+def write_file(data, path, mode="w", **kwargs):
+    with open(path, mode=mode, **kwargs) as f:
+        f.write(data)
+
+
+def read_json(path, mode="r", **kwargs):
+    return json.loads(read_file(path, mode=mode, **kwargs))
+
+
+def write_json(data, path):
+    return write_file(json.dumps(data, indent=2), path)
+
+
+def to_jsonl(data):
+    return json.dumps(data).replace("\n", "")
+
+
+def read_jsonl(path, mode="r", **kwargs):
+    ls = []
+    with open(path, mode, **kwargs) as f:
+        for line in f:
+            ls.append(json.loads(line))
+    return ls
+
+
+def write_jsonl(data, path, mode="w"):
+    assert isinstance(data, list)
+    lines = [to_jsonl(elem) for elem in data]
+    write_file("\n".join(lines) + "\n", path, mode=mode)
 
 
 def load_csv_data(data_path, sub_sample=False):
@@ -93,7 +131,8 @@ def predict_binary(y, tx, w, loss_type="logistic"):
     """
     z = np.dot(tx, w)
     if loss_type == "mse":
-        test_loss = 0.5 * np.mean((y - z)**2)
+        e = y - tx.dot(w)
+        test_loss = 1/2 * np.mean(e**2)
     elif loss_type == "rmse":
         test_loss = np.sqrt(np.mean((y - z)**2))
     elif loss_type == "logistic":
@@ -109,6 +148,7 @@ def predict_binary(y, tx, w, loss_type="logistic"):
     predict_y = list(map(lambda x: 0 if x < 0.5 else 1, p_pred))
 
     return predict_y, test_loss
+
 
 def compute_prf_binary(label_y, predict_y):
     """
@@ -133,3 +173,48 @@ def compute_prf_binary(label_y, predict_y):
     recall = tp / (tp + fn)
     f1 = 2 * precision * recall / (precision + recall)
     return accuracy, precision, recall, f1
+
+
+def predict_binary_test(tx, w, model_type="logistic", mode="test"):
+    """
+    :param tx: input features, size: (N_Test,D)
+    :param w: trained weights
+    :param model_type: model type: ["mse", "rmse", "logistic"]
+    :param mode: prediction mode
+    :return: predict_y
+    """
+    z = np.dot(tx, w)
+
+    if model_type == "logistic":
+        p_pred = np.exp(z) / (1 + np.exp(z))
+    else:
+        p_pred = z
+
+    if mode == "train":  # original labels we predict are in {0, 1}
+        predict_y = list(map(lambda x: 0 if x < 0.5 else 1, p_pred))
+    elif mode == "test":  # predictions submitted to platform are in {-1, 1}
+        predict_y = list(map(lambda x: -1 if x < 0.5 else 1, p_pred))
+    else:
+        predict_y = None
+
+    return predict_y
+
+
+def write_results_test(file_path, ids, y_predicts):
+    title = ["Id", "Prediction"]
+    with open(file_path, "w") as f:
+        f.write(",".join(title) + "\n")
+        for test_id, y_predict in zip(ids, y_predicts):
+            f.write(",".join([str(test_id), str(y_predict)]) + "\n")
+
+
+def sigmoid(t):
+    """apply sigmoid function on t.
+
+    Args:
+        t: scalar or numpy array
+
+    Returns:
+        scalar or numpy array
+    """
+    return 1 / (1 + np.exp(-t))

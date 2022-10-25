@@ -1,5 +1,6 @@
-from unicodedata import category
 import numpy as np
+
+from unicodedata import category
 from scripts.helpers import load_csv_data
 
 
