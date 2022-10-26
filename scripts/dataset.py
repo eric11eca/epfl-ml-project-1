@@ -35,7 +35,7 @@ class Dataset:
         self.ids = ids
         self.labels = y
         self.data = tX
-
+        
         self.category_feature()
         self.data_imputation()
         self.data_polynomial()
@@ -104,15 +104,16 @@ class Dataset:
         """
         Filter out outliers over mean +/- m * std>
         """
-        for i in range(self.data.shape[1]):
-            delta = abs(self.data[:, i] - np.mean(self.data[:, i]))
-            mdev = m * np.std(self.data[:, i])
-            self.data = self.data[delta < mdev]
-            self.labels = self.labels[delta < mdev]
-            self.ids = self.ids[delta < mdev]
+        if self.data_type != 'test':
+            for i in range(self.data.shape[1]):
+                delta = abs(self.data[:, i] - np.mean(self.data[:, i]))
+                mdev = m * np.std(self.data[:, i])
+                self.data = self.data[delta < mdev]
+                self.labels = self.labels[delta < mdev]
+                self.ids = self.ids[delta < mdev]
 
-            assert self.labels.shape[0] == self.data.shape[0]
-            assert self.ids.shape[0] == self.data.shape[0]
+                assert self.labels.shape[0] == self.data.shape[0]
+                assert self.ids.shape[0] == self.data.shape[0]
 
     def get_cat_mean(self):
         NAN_VALUE = -999
@@ -131,26 +132,28 @@ class Dataset:
                 self.cat_mean[cat][col]=np.mean(col_data[col_data!=NAN_VALUE])
                 self.cat_median[cat][col]=np.median(col_data[col_data!=NAN_VALUE])
 
-    def data_polynomial(self, degree=None):
+    def data_polynomial(self):
         
-        degree = degree if degree else self.poly_degree
-        poly_data = []
-        poly_col_names = []
+        degree = self.poly_degree
+        print('poly degree:'+str(degree))
+        if degree > 0:
+            poly_data = []
+            poly_col_names = []
 
-        for i in range(self.data.shape[1]):
-            col_name = self.col_names[i]
-            col = self.data[:, i]
+            for i in range(self.data.shape[1]):
+                col_name = self.col_names[i]
+                col = self.data[:, i]
 
-            poly = [col**j for j in range(1, degree+1)]
-            poly_name = [col_name.replace('\n','')+'_'+str(j) for j in range(1, degree+1)]
+                poly = [col**j for j in range(1, degree+1)]
+                poly_name = [col_name.replace('\n','')+'_'+str(j) for j in range(1, degree+1)]
 
-            poly_data += poly
-            poly_col_names += poly_name
-# polynomial + original data
-        self.poly_data = np.stack(poly_data)
-        self.poly_data = self.poly_data.T
-        self.poly_col_names = poly_col_names
+                poly_data += poly
+                poly_col_names += poly_name
+    # polynomial + original data
+            self.poly_data = np.stack(poly_data)
+            self.poly_data = self.poly_data.T
+            self.poly_col_names = poly_col_names
 
-# stack polynomial data + original data + categorical data
-        self.poly_full_data = np.c_[self.poly_data, self.category_data]
-        self.poly_full_col_names = self.poly_col_names + self.category_col_names
+    # stack polynomial data + original data + categorical data
+            self.poly_full_data = np.c_[self.poly_data, self.category_data]
+            self.poly_full_col_names = self.poly_col_names + self.category_col_names
