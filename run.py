@@ -1,5 +1,6 @@
 import logging
 import argparse
+from venv import create
 
 from implementations import *
 from scripts.helpers import *
@@ -316,8 +317,8 @@ class Trainer:
                 w=best_weights[k],
                 model_type=model_type
             )
-            write_results_test(
-                f"./output/{self.model}_fold_{k}_test_out.csv", ids_test, test_preds)
+            create_csv_submission(
+                ids_test, test_preds, f"./output/{self.model}_fold_{k}_test_out.csv")
 
 
 if __name__ == "__main__":
@@ -332,10 +333,11 @@ if __name__ == "__main__":
                         help="save figure")
     parser.add_argument("--do_train", default=False, action="store_true")
     parser.add_argument("--do_eval", default=False, action="store_true")
+    parser.add_argument("--poly_degree", type=int, default=0, help="number of polynomial degree")
     args = parser.parse_args()
 
     logger.info("loading data ...")
-    train_dataset = Dataset(args.data_dir, "train")
+    train_dataset = Dataset(args.data_dir, "train", poly_degree=args.poly_degree)
     train_dataset.load_data()
 
     random_seed = 42
@@ -391,8 +393,10 @@ if __name__ == "__main__":
         trainer.train()
 
     if args.do_eval:
-        test_dataset = Dataset(args.data_dir, "test")
+        test_dataset = Dataset(args.data_dir, "test", poly_degree=args.poly_degree)
+        test_dataset.load_data()
+
         test_features = test_dataset.data
         test_ids = test_dataset.ids
-        test_dataset.load_data()
+        
         trainer.eval(test_features, test_ids)
