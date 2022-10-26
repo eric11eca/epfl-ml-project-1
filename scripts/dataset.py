@@ -135,7 +135,7 @@ class Dataset:
     def data_polynomial(self):
         
         degree = self.poly_degree
-        print('poly degree:'+str(degree))
+    
         if degree > 0:
             poly_data = []
             poly_col_names = []
