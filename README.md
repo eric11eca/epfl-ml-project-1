@@ -40,9 +40,9 @@ We conducted one-hot encoding, data imputation, normalization, and outlier filte
 ```
 category_feature(): converted categorical feature into one-hot encoding
 
-data_imputation(): replaced missing values (i.e., -999) into mean, median, each label's mean, each label's median
+data_imputation(): replaced missing values into mean/median, label mean/median
 
-data_normalization(): normalized each data point by - mean, and / by standard deviation of the features
+data_normalization(): normalized each data point by - mean, and / by std
 
 filter_outliers(): filtered out outliers over mean +/- m * std
 ```
