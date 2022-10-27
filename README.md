@@ -82,7 +82,7 @@ For the performance improvement, we chose the best performance model (i.e., regu
 
 ##### Loss functions
 
-We calculated the loss with `mse` for linear models and `logistic` for logistic models. 
+We calculated the loss with `mse` for linear models and `negative log likelihood` for logistic models. 
 
 
 #### Cross-validation
