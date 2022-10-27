@@ -174,7 +174,7 @@ class ModelAggregator:
 
 
 def cross_validation(
-    tx, y, init_w=None, k_fold=10, cv_params=None, model="logistic_regression", save_fig=False, degree=4,
+    tx, y, init_w=None, k_fold=10, cv_params=None, model="logistic_regression", save_fig=False, degree=4, feature_names=None,
 ):
     """
     Cross validation for the given model
@@ -196,7 +196,6 @@ def cross_validation(
 
     model_aggregator = ModelAggregator()
     best_weights = weights
-
     
     training_tracker = {}
 
@@ -256,11 +255,19 @@ def cross_validation(
     
     if save_fig:
         exp_name = f'{model.upper()}+degree-{degree}'
+        
         for param, v in cv_params.items():
             exp_name += f'+{param}-{v}'
+        exp_log_dir = os.path.join('log', exp_name)
+        if not os.path.exists(exp_log_dir):
+            os.mkdir(exp_log_dir)
+
         plot_training_stats(kfold_training_tracker=training_tracker,
-                            save_path=f'figures/training_stats/{exp_name}.png',
+                            save_path=f'{exp_log_dir}/training_stats.png',
                             title=exp_name)
+        # print('best_weights: ', best_weights)
+        feat_weights_dict = {f:w for f, w in zip(feature_names, np.mean(best_weights, axis=0))} 
+        plot_weights(feat_weights_dict, save_path=f'{exp_log_dir}/feature_weights.png')
     for key in metric_log.keys():
         metric_log[key] = np.mean(metric_log[key])
     
@@ -294,7 +301,7 @@ class Trainer:
         self.checkpoint = f"./log/{model}_{k_fold}fold_cv_best.json"
         self.degree=degree
 
-    def train(self, save_fig=False):
+    def train(self, save_fig=False, feature_names=None):
         best_metric = 0.0
         best_params = {}
         # print('training start')
@@ -309,7 +316,8 @@ class Trainer:
                 cv_params=config,
                 model=self.model,
                 save_fig=save_fig,
-                degree=self.degree
+                degree=self.degree,
+                feature_names=feature_names,
             )
 
             print(f"Finish Validation: {metric_log}")
@@ -396,6 +404,8 @@ if __name__ == "__main__":
     shuffle_idx = np.random.permutation(np.arange(len(labels)))
     shuffled_y = labels[shuffle_idx]
     shuffled_tx = features[shuffle_idx]
+    
+    feature_names = train_dataset.read_col_names()
 
     init_w = np.random.uniform(low=-2.0, high=2.0, size=features.shape[1])
 
@@ -405,7 +415,7 @@ if __name__ == "__main__":
         split_rate = (k_fold - 1) / k_fold
         hyper_params["max_iters"] = [int(
             split_rate * len(shuffled_y) / batch_size)]
-        hyper_params["epochs"] = [3]
+        hyper_params["epochs"] = [30]
         hyper_params["gamma"] = sgd_gamma
     elif model == "mse_gd":
         hyper_params["max_iters"] = [1]
@@ -429,7 +439,7 @@ if __name__ == "__main__":
     )
 
     if args.do_train:
-        trainer.train(save_fig=args.save_fig)
+        trainer.train(save_fig=args.save_fig, feature_names = feature_names)
 
     if args.do_eval:
         test_dataset = Dataset(args.data_dir, "test")
