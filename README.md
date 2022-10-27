@@ -32,18 +32,43 @@ For all experiments, we save the best weight of the models with json as `./log/{
 
 You can find all the ML methods in `implementations.py`.
  
-| ML | model args          | Arguments |
+| ML | model args          | Parameters |
 |-----------|--------------------|-----------|
-|`mean_squared_error_gd`| `mse_gd`  | `y, tx, initial_w, max_iters, gamma`  | 
-|`mean_squared_error_sgd`| `mse_sgd` | `y, tx, initial_w, max_iters, gamma, batch_size=1`  |
-|`least_squares`| `least_squares`     | `y, tx` |
-|`ridge_regression`| `ridge`  | `y, tx, lambda_` |
-|`logistic_regression`| `logistic`| `y, tx, initial_w, max_iters, gamma, batch_size=1, sgd=False` |
-|`reg_logistic_regression`| `reg_logistic` | `y, tx, lambda_, initial_w, max_iters, gamma, batch_size=1, sgd=False` |
+| `mean_squared_error_gd` | `mse_gd`  | `y, tx, initial_w, max_iters, gamma`  | 
+| `mean_squared_error_sgd` | `mse_sgd` | `y, tx, initial_w, max_iters, gamma, batch_size=1`  |
+| `least_squares` | `least_squares`     | `y, tx` |
+| `ridge_regression` | `ridge`  | `y, tx, lambda_` |
+| `logistic_regression` | `logistic`| `y, tx, initial_w, max_iters, gamma, batch_size=1, sgd=False` |
+| `reg_logistic_regression` | `reg_logistic` | `y, tx, lambda_, initial_w, max_iters, gamma, batch_size=1, sgd=False` |
 
-#### Data preparation & Feature generation
+For the performance improvement, we chose the best performance model (i.e., regularized logistic regression) with dynamic learning rate.
 
-You can find all the data preprocessing and feature generation (i.e., polynomial feature augmentation) steps in `dataset.py`. 
+| ML | model args          | Parameters |
+|-----------|--------------------|-----------|
+| `reg_logistic_dynamic` | `reg_logistic_dynamic` | `y, tx, y_valid, tx_valid, initial_w, max_epoch_iters, gamma, batch_size=1,
+                         lambda_, dynamic_lr=True, k_cross=10, half_lr_count=2, early_stop_count=4` |
+
+#### Data preprocessing
+
+You can find all the data preprocessing, feature generation, and feature selection steps in `dataset.py`. Details are as follows.
+
+a) Data preparation:
+
+```
+
+```
+
+b) Feature generation:
+
+```
+
+```
+
+c) Feature selection:
+
+```
+
+```
 
 #### Cross-validation
 
