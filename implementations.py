@@ -133,8 +133,9 @@ def logistic_regression(
             logit = tx.dot(w)
             gradient = tx.T.dot(sigmoid(logit) - y) / len(y)
             w = w - (gamma * gradient)
-            logit = tx.dot(w)
-            loss = np.mean(np.log(1 + np.exp(logit)) - y * logit)
+            p_pred = sigmoid(logit)
+            loss = -np.mean(y*np.log(p_pred)+(1-y)*np.log(p_pred))
+            # loss = np.mean(np.log(1 + np.exp(-logit)) - y * logit)
             losses.append(loss)
     else:
         for n_iter in tqdm(range(max_iters)):
@@ -142,7 +143,9 @@ def logistic_regression(
                 y, tx, batch_size=batch_size, num_batches=1, shuffle=True
             ):
                 logit = tx_batch.dot(w)
-                loss = np.mean(np.log(1 + np.exp(logit)) - y_batch * logit)
+                p_pred = sigmoid(logit)
+                loss = -np.mean(y*np.log(p_pred)+(1-y)*np.log(p_pred))
+                # loss = np.mean(np.log(1 + np.exp(logit)) - y_batch * logit)
                 gradient = tx_batch.T.dot(
                     sigmoid(logit) - y_batch)
                 w = w - (gamma * gradient)

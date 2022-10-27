@@ -327,6 +327,7 @@ class Trainer:
                     f"New best {self.monitor} found: {metric_log[self.monitor]}")
                 best_metric = metric_log[self.monitor]
                 best_params = config
+                best_params['degree'] = self.degree
                 write_json({
                     "best_params": best_params,
                     self.monitor: metric_log[self.monitor],
@@ -400,12 +401,13 @@ if __name__ == "__main__":
 
     ids = train_dataset.ids
     labels = train_dataset.labels
-    features = train_dataset.data
+    features = train_dataset.poly_data
     shuffle_idx = np.random.permutation(np.arange(len(labels)))
     shuffled_y = labels[shuffle_idx]
     shuffled_tx = features[shuffle_idx]
+    print('features.shape: ', features.shape)
     
-    feature_names = train_dataset.read_col_names()
+    feature_names = train_dataset.poly_feature_names
 
     init_w = np.random.uniform(low=-2.0, high=2.0, size=features.shape[1])
 
@@ -415,7 +417,7 @@ if __name__ == "__main__":
         split_rate = (k_fold - 1) / k_fold
         hyper_params["max_iters"] = [int(
             split_rate * len(shuffled_y) / batch_size)]
-        hyper_params["epochs"] = [30]
+        hyper_params["epochs"] = [2]
         hyper_params["gamma"] = sgd_gamma
     elif model == "mse_gd":
         hyper_params["max_iters"] = [1]
