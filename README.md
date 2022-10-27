@@ -80,6 +80,11 @@ For the performance improvement, we chose the best performance model (i.e., regu
 |-----------|--------------------|-----------|
 | `reg_logistic_dynamic` | `reg_logistic_dynamic` | `y, tx, y_valid, tx_valid, initial_w, max_epoch_iters, gamma, batch_size=1, lambda_, dynamic_lr=True, k_cross=10, half_lr_count=2, early_stop_count=4` |
 
+##### Loss functions
+
+We calculated the loss with `mse` for linear models and `negative log likelihood` for logistic models. 
+
+
 #### Cross-validation
 
 We tested the models on 5-fold cross validation. 
