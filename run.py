@@ -4,6 +4,7 @@ import argparse
 from implementations import *
 from scripts.helpers import *
 from scripts.dataset import *
+from scripts.visualization import *
 
 logging.basicConfig(
     level=logging.DEBUG,
@@ -173,7 +174,7 @@ class ModelAggregator:
 
 
 def cross_validation(
-    tx, y, init_w=None, k_fold=10, cv_params=None, model="logistic_regression"
+    tx, y, init_w=None, k_fold=10, cv_params=None, model="logistic_regression", save_fig=False, degree=4,
 ):
     """
     Cross validation for the given model
@@ -196,6 +197,9 @@ def cross_validation(
     model_aggregator = ModelAggregator()
     best_weights = weights
 
+    
+    training_tracker = {}
+
     for k in range(k_fold):
         print(f"Cross validation: fold {k}")
         start = k * len(y) // k_fold
@@ -208,6 +212,9 @@ def cross_validation(
         y_val = y[start:end]
 
         monitor = cv_params["monitor"]
+
+        ## Track Training Stats ##
+        training_tracker[f'fold-{k}'] = {k:[] for k in metric_log.keys()}
 
         for epoch in range(cv_params["epochs"]):
             print(f"Epoch: {epoch}, num_steps: {cv_params['max_iters']}")
@@ -228,6 +235,14 @@ def cross_validation(
             weights[k] = output_dict["logits"]
             metric_log["train_loss"].append(output_dict["train_loss"])
             metric_log["train_acc"].append(train_acc)
+            
+            training_tracker[f'fold-{k}']["train_loss"].append(output_dict["train_loss"])
+            training_tracker[f'fold-{k}']["train_acc"].append(train_acc)
+            training_tracker[f'fold-{k}']["val_loss"].append(output_dict["val_loss"])
+            training_tracker[f'fold-{k}']["val_acc"].append(val_acc)
+            training_tracker[f'fold-{k}']["val_f1"].append(va_f1)
+            training_tracker[f'fold-{k}']["val_precision"].append(va_p)
+            training_tracker[f'fold-{k}']["val_recall"].append(va_r)
 
             if val_acc > metric_log["val_acc"][k]:
                 print("====================================================")
@@ -238,10 +253,17 @@ def cross_validation(
                 metric_log["val_precision"][k] = va_p
                 metric_log["val_recall"][k] = va_r
                 metric_log["val_loss"][k] = output_dict["val_loss"]
-
+    
+    if save_fig:
+        exp_name = f'{model.upper()}+degree-{degree}'
+        for param, v in cv_params.items():
+            exp_name += f'+{param}-{v}'
+        plot_training_stats(kfold_training_tracker=training_tracker,
+                            save_path=f'figures/training_stats/{exp_name}.png',
+                            title=exp_name)
     for key in metric_log.keys():
         metric_log[key] = np.mean(metric_log[key])
-
+    
     return weights, best_weights, metric_log
 
 
@@ -255,6 +277,7 @@ class Trainer:
         k_fold=10,
         model="reg_logistic",
         save_fig=False,
+        degree=4,
     ):
         self.y = y
         self.tx = tx
@@ -265,12 +288,16 @@ class Trainer:
         self.monitor = params['monitor'][0]
         self.weights = [init_w for i in range(k_fold)]
         self.param_grid = build_parameter_grid(params)
+        # print('===== Params Grid =====')
+        # for param in self.param_grid:
+        #     print(param)
         self.checkpoint = f"./log/{model}_{k_fold}fold_cv_best.json"
+        self.degree=degree
 
-    def train(self):
+    def train(self, save_fig=False):
         best_metric = 0.0
         best_params = {}
-
+        # print('training start')
         for config in self.param_grid:
             print(f"Cross validation {self.model} with {config}")
 
@@ -281,6 +308,8 @@ class Trainer:
                 k_fold=self.k_fold,
                 cv_params=config,
                 model=self.model,
+                save_fig=save_fig,
+                degree=self.degree
             )
 
             print(f"Finish Validation: {metric_log}")
@@ -319,6 +348,9 @@ class Trainer:
             write_results_test(
                 f"./output/{self.model}_fold_{k}_test_out.csv", ids_test, test_preds)
 
+    def param_selection(self):
+        pass
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -332,10 +364,27 @@ if __name__ == "__main__":
                         help="save figure")
     parser.add_argument("--do_train", default=False, action="store_true")
     parser.add_argument("--do_eval", default=False, action="store_true")
+    parser.add_argument("--imputation", type=str, default="mean",
+                        help="Method for missing value imputation")
+    parser.add_argument("--degree", type=int, default=4,
+                        help="degree of polynomial feature augmentation")
     args = parser.parse_args()
-
+    
+    ## Setup Hyperparameter Search Space ##
+    gd_gamma = [0.01, 0.05, 0.1, 0.25, 0.5]
+    sgd_gamma = [5e-4, 1e-3, 2e-3, 5e-3, 0.01]
+    batch_size = 100
+    hyper_params = {
+        "batch_size": [batch_size],
+        "monitor": ["val_acc"],
+    }
+    k_fold = args.k_fold
+    
     logger.info("loading data ...")
-    train_dataset = Dataset(args.data_dir, "train")
+    train_dataset = Dataset(args.data_dir, 
+                            "train", 
+                            imputation_method=args.imputation,
+                            poly_degree=args.degree)
     train_dataset.load_data()
 
     random_seed = 42
@@ -351,21 +400,12 @@ if __name__ == "__main__":
     init_w = np.random.uniform(low=-2.0, high=2.0, size=features.shape[1])
 
     model = args.model
-    gd_gamma = [0.01, 0.05, 0.1, 0.25, 0.5]
-    sgd_gamma = [5e-4, 1e-3, 2e-3, 5e-3, 0.01]
-    k_fold = args.k_fold
-    batch_size = 100
-
-    hyper_params = {
-        "batch_size": [batch_size],
-        "monitor": ["val_acc"],
-    }
 
     if model in ["mse_sgd", "logistic", "reg_logistic"]:
         split_rate = (k_fold - 1) / k_fold
         hyper_params["max_iters"] = [int(
             split_rate * len(shuffled_y) / batch_size)]
-        hyper_params["epochs"] = [10]
+        hyper_params["epochs"] = [3]
         hyper_params["gamma"] = sgd_gamma
     elif model == "mse_gd":
         hyper_params["max_iters"] = [1]
@@ -385,10 +425,11 @@ if __name__ == "__main__":
         init_w=init_w,
         k_fold=k_fold,
         model=model,
+        degree=args.degree,
     )
 
     if args.do_train:
-        trainer.train()
+        trainer.train(save_fig=args.save_fig)
 
     if args.do_eval:
         test_dataset = Dataset(args.data_dir, "test")

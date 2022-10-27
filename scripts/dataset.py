@@ -14,7 +14,6 @@ class Dataset:
         self.ids = []
         self.category_data = []
         self.category_col_names = []
-
         self.poly_degree = poly_degree
         self.poly_data = []
         self.poly_col_names = None
@@ -146,11 +145,11 @@ class Dataset:
 
             poly_data += poly
             poly_col_names += poly_name
-# polynomial + original data
+        # polynomial + original data
         self.poly_data = np.stack(poly_data)
         self.poly_data = self.poly_data.T
         self.poly_col_names = poly_col_names
 
-# stack polynomial data + original data + categorical data
+        # stack polynomial data + original data + categorical data
         self.poly_full_data = np.c_[self.poly_data, self.category_data]
         self.poly_full_col_names = self.poly_col_names + self.category_col_names
