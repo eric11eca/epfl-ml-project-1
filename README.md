@@ -37,29 +37,24 @@ a) Data preparation:
 
 We conducted one-hot encoding, data imputation, normalization, and outlier filtering.
 
-```
-category_feature(): converted categorical feature into one-hot encoding
+- category_feature(): converted categorical feature into one-hot encoding
 
-data_imputation(): replaced missing values into mean/median, label mean/median
+- data_imputation(): replaced missing values into mean/median, label mean/median
 
-data_normalization(): normalized each data point by - mean, and / by std
+- data_normalization(): normalized each data point by - mean, and / by std
 
-filter_outliers(): filtered out outliers over mean +/- m * std
-```
+- filter_outliers(): filtered out outliers over mean +/- m * std
 
 b) Feature generation:
 
 We conducted feature augmentation by expanding each feature value into polynomial series.
 
-```
-data_polynomial(): augmented feature by varying degrees
-```
+- data_polynomial(): augmented feature by varying degrees
+
 
 c) Feature selection:
 
-```
-
-```
+-
 
 #### ML Implementations
 
