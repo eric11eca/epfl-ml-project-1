@@ -1,51 +1,76 @@
 import numpy as np
 
-from unicodedata import category
 from scripts.helpers import load_csv_data
 
 
 class Dataset:
-    def __init__(self, data_pth, data_type, imputation_method='mean', poly_degree=4):
+    def __init__(self, data_pth, data_type, imputation="median", poly_degree=4):
         self.data_pth = f"{data_pth}/{data_type}.csv"
         self.data_type = data_type
-
-        self.data = []
-        self.labels = []
-        self.ids = []
-        self.category_data = []
-        self.category_col_names = []
         self.poly_degree = poly_degree
-        self.poly_data = []
-        self.poly_col_names = None
+        self.imputation = imputation
 
-        # after concatenating categorical variables
-        self.poly_full_data = []
-        self.poly_full_col_names = None
-
-        self.col_names = self.read_col_names()
-        self.num_cols = len(self.col_names)
-
-        self.imputation_method = imputation_method
-
-    def load_data(self):
+    def load_data(self, poly=False, discard_cols=None):
         """Load the data from the csv file."""
+        if discard_cols is None:
+            discard_cols = ['prediction', 'id', 'pri_jet_num']
+
+        label_map = {1: 1, -1: 0}
+
+        self.orig_col_name = self.read_col_names()
+        self.feature_col_ids = [i for i, col in enumerate(
+            self.orig_col_name, start=0) if col.lower() not in discard_cols]
+        self.feature_col_names = [
+            col for col in self.orig_col_name if col.lower() not in discard_cols]
 
         y, tX, ids = load_csv_data(self.data_pth)
         self.ids = ids
-        self.labels = y
-        self.data = tX
+        self.tX = tX
+        self.data = tX[:, self.feature_col_ids]
+        self.labels = np.array(list(map(lambda y: label_map[y], y)))
 
-        self.category_feature()
-        self.data_imputation()
-        self.data_polynomial()
+        self.data_imputation(method=self.imputation)
+
+        self.full_data, self.full_feature_names = self.build_category_feature()
+        self.poly_data, self.poly_feature_names = self.data_polynomial()
+
+        self.data = self.full_data
+        self.feature_col_names = self.full_feature_names
+
+        if poly:
+            self.data = self.poly_data
+            self.feature_col_names = self.poly_feature_names
+
+        self.sanity_check()
+
         self.data_normalization()
-        self.filter_outliers()
+
+        if self.data_type == 'train':
+            self.filter_outliers()
+
+    def sanity_check(self):
+        print('=== original columns ===')
+        print(f'original data shape: {self.tX.shape}')
+        print(self.orig_col_name)
+        print()
+        print('=== feature columns ===')
+        print(f'feature data shape: {self.data.shape}')
+        print(self.feature_col_names)
+        print()
+        print('=== categorical columns ===')
+        print(f'categorical data shape: {self.full_data.shape}')
+        print(self.full_feature_names)
+        print()
+        print('=== poly columns ===')
+        print(f'polynomial data shape: {self.poly_data.shape}')
+        print(self.poly_feature_names)
+        print()
 
     def read_col_names(self):
         """Read the column names from the csv file."""
 
         with open(self.data_pth, "r") as f:
-            col_names = f.readline().strip().split(",")
+            col_names = f.readline().strip().split(",")[2:]
         return col_names
 
     def data_imputation(self, method="median"):
@@ -64,23 +89,24 @@ class Dataset:
             elif method == 'category_mean':
                 self.get_cat_mean()
                 for row in range(self.data.shape[0]):
-                    self.data[100][self.data[100]==-999]= self.cat_mean[self.labels[100]][self.data[100]==-999]
+                    self.data[100][self.data[100] == -
+                                   999] = self.cat_mean[self.labels[100]][self.data[100] == -999]
             elif method == 'category_median':
                 self.get_cat_mean()
                 for row in range(self.data.shape[0]):
-                    self.data[100][self.data[100]==-999]= self.cat_median[self.labels[100]][self.data[100]==-999]
+                    self.data[100][self.data[100] == -
+                                   999] = self.cat_median[self.labels[100]][self.data[100] == -999]
             else:
                 col_data[col_data == -999.0] = 0.0
                 col_data[np.isnan(col_data)] = 0.0
-                
+
     def data_normalization(self):
         """Normalize the data, zero-mean and standardization."""
-
         mean_data = np.mean(self.data, axis=0)
         self.data = self.data - mean_data
         self.data = self.data / np.std(self.data, axis=0)
 
-    def category_feature(self):
+    def build_category_feature(self):
         """Create new features based on the category feature."""
         jet_num_one_hot = {
             0: [0.0, 0.0, 0.0, 1.0],
@@ -89,15 +115,16 @@ class Dataset:
             3: [1.0, 0.0, 0.0, 0.0]
         }
 
-        jet_num_col = self.col_names.index("PRI_jet_num")
         self.category_col_names = ['jetnum3', 'jetnum2', 'jetnum1', 'jetnum0']
 
         # category val is in col 22
-        category_data = self.data[:, 22]
-        self.category_data = np.array(list(map(lambda x: jet_num_one_hot[x], category_data)))
+        category_data = self.tX[:, 22]
+        self.category_data = np.array(
+            list(map(lambda x: jet_num_one_hot[x], category_data)))
 
-        self.col_names = self.col_names + self.category_col_names
-        self.data = np.c_[self.data, self.category_data]
+        full_col_names = self.feature_col_names + self.category_col_names
+        full_data = np.c_[self.data, self.category_data]
+        return full_data, full_col_names
 
     def filter_outliers(self, m=10):
         """
@@ -118,8 +145,8 @@ class Dataset:
         # 'category_mean', 'category_median'
         self.cat_mean = {}
         self.cat_median = {}
-        self.cat_ids = {cat:[i for i in range(len(self.labels)) if self.labels[i]==cat] for cat in np.unique(self.labels)}
-
+        self.cat_ids = {cat: [i for i in range(
+            len(self.labels)) if self.labels[i] == cat] for cat in np.unique(self.labels)}
 
         for col in range(self.data.shape[1]):
             for cat, ids in self.cat_ids.items():
@@ -127,29 +154,36 @@ class Dataset:
                 if cat not in self.cat_mean.keys():
                     self.cat_mean[cat] = np.zeros(self.data.shape[1])
                     self.cat_median[cat] = np.zeros(self.data.shape[1])
-                self.cat_mean[cat][col]=np.mean(col_data[col_data!=NAN_VALUE])
-                self.cat_median[cat][col]=np.median(col_data[col_data!=NAN_VALUE])
+                self.cat_mean[cat][col] = np.mean(
+                    col_data[col_data != NAN_VALUE])
+                self.cat_median[cat][col] = np.median(
+                    col_data[col_data != NAN_VALUE])
 
     def data_polynomial(self, degree=None):
-        
         degree = degree if degree else self.poly_degree
+        if degree <= 1:
+            return self.categorical_data, self.categorical_feature_names
+
         poly_data = []
         poly_col_names = []
 
-        for i in range(self.data.shape[1]):
-            col_name = self.col_names[i]
+        for i in range(len(self.feature_col_ids)):
+            col_name = self.feature_col_names[i]
             col = self.data[:, i]
 
             poly = [col**j for j in range(1, degree+1)]
-            poly_name = [col_name.replace('\n','')+'_'+str(j) for j in range(1, degree+1)]
+            poly_name = [col_name.replace('\n', '')+'_'+str(j)
+                         for j in range(1, degree+1)]
 
             poly_data += poly
             poly_col_names += poly_name
+
         # polynomial + original data
-        self.poly_data = np.stack(poly_data)
-        self.poly_data = self.poly_data.T
-        self.poly_col_names = poly_col_names
+        poly_data = np.stack(poly_data)
+        poly_data = poly_data.T
 
         # stack polynomial data + original data + categorical data
-        self.poly_full_data = np.c_[self.poly_data, self.category_data]
-        self.poly_full_col_names = self.poly_col_names + self.category_col_names
+        poly_full_data = np.c_[poly_data, self.category_data]
+        poly_full_col_names = poly_col_names + self.category_col_names
+
+        return poly_full_data, poly_full_col_names
