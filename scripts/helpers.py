@@ -137,8 +137,8 @@ def predict_binary(y, tx, w, loss_type="logistic"):
     elif loss_type == "rmse":
         test_loss = np.sqrt(np.mean(e**2))
     elif loss_type == "logistic":
-        test_loss = -np.mean(y*np.log(p_pred)+(1-y)*np.log(p_pred))
-        # test_loss = np.mean(np.log(1 + np.exp(z)) - y * z)
+        # test_loss = -np.mean(y*np.log(p_pred)+(1-y)*np.log(p_pred))
+        test_loss = np.mean(np.log(1 + np.exp(z)) - y * z)
     else:
         raise ValueError("loss_type must be mse, rmse or logistic")
 

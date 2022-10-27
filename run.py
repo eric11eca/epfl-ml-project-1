@@ -417,7 +417,7 @@ if __name__ == "__main__":
         split_rate = (k_fold - 1) / k_fold
         hyper_params["max_iters"] = [int(
             split_rate * len(shuffled_y) / batch_size)]
-        hyper_params["epochs"] = [2]
+        hyper_params["epochs"] = [30]
         hyper_params["gamma"] = sgd_gamma
     elif model == "mse_gd":
         hyper_params["max_iters"] = [1]

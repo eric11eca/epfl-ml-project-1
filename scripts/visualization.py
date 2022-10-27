@@ -50,5 +50,4 @@ def plot_weights(feature_weights_dict:dict, save_path:str):
     fig.set_size_inches(30, 6)
     ax.set_ylabel("Importance")
     fig.tight_layout()
-    plt.show()
     fig.savefig(save_path)
