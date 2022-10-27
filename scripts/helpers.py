@@ -26,24 +26,6 @@ def write_json(data, path):
     return write_file(json.dumps(data, indent=2), path)
 
 
-def to_jsonl(data):
-    return json.dumps(data).replace("\n", "")
-
-
-def read_jsonl(path, mode="r", **kwargs):
-    ls = []
-    with open(path, mode, **kwargs) as f:
-        for line in f:
-            ls.append(json.loads(line))
-    return ls
-
-
-def write_jsonl(data, path, mode="w"):
-    assert isinstance(data, list)
-    lines = [to_jsonl(elem) for elem in data]
-    write_file("\n".join(lines) + "\n", path, mode=mode)
-
-
 def load_csv_data(data_path, sub_sample=False):
     """Loads data and returns y (class labels), tX (features) and ids (event ids)"""
     y = np.genfromtxt(data_path, delimiter=",",
@@ -117,37 +99,40 @@ def batch_iter(y, tx, batch_size, num_batches=1, shuffle=True):
 
 
 def build_parameter_grid(param_options):
+    """
+    Build a grid of parameters to search over.
+
+    :param param_options: dictionary of parameter names and lists of values to try
+    :rtype: List[Dict]
+    :return: list of Dict, each Dict is a set of parameters to try
+    """
     for item in product(*param_options.values()):
         yield dict(zip(param_options.keys(), item))
 
 
-def predict_binary(y, tx, w, loss_type="logistic"):
+def predict_val(y, tx, w, loss_type="logistic"):
     """
+    Prediction function for validation data, where labels are  either 0 or 1
+
     :param y: ground truth labels, size: (N_Test,)
     :param tx: input features, size: (N_Test,D)
     :param w: trained weights
-    :param loss_type: model type: ["mse", "rmse", "logistic"]
-    :return: predict_y, test_loss
+    :param loss_type: types of loss used
+    :rtype: List[int], float
+    :return: y_preds, val_loss
     """
-    z = np.dot(tx, w)
+    logits = tx.dot(w)
+
     if loss_type == "mse":
-        e = y - tx.dot(w)
-        test_loss = 1/2 * np.mean(e**2)
-    elif loss_type == "rmse":
-        test_loss = np.sqrt(np.mean((y - z)**2))
+        val_loss = 1/2 * np.mean((y - logits)**2)
     elif loss_type == "logistic":
-        test_loss = np.mean(np.log(1 + np.exp(z)) - y * z)
-    else:
-        raise ValueError("loss_type must be mse, rmse or logistic")
+        print(y)
+        val_loss = np.mean(np.log(1 + np.exp(logits)) - y * logits)
 
-    if loss_type == "logistic":
-        p_pred = np.exp(z) / (1 + np.exp(z))
-    else:
-        p_pred = z
+    preds = sigmoid(logits) if loss_type == "logistic" else logits
+    y_preds = list(map(lambda x: 0 if x < 0.5 else 1, preds))
 
-    predict_y = list(map(lambda x: 0 if x < 0.5 else 1, p_pred))
-
-    return predict_y, test_loss
+    return y_preds, val_loss
 
 
 def compute_prf_binary(label_y, predict_y):
@@ -175,46 +160,83 @@ def compute_prf_binary(label_y, predict_y):
     return accuracy, precision, recall, f1
 
 
-def predict_binary_test(tx, w, model_type="logistic", mode="test"):
+def predict_test(tx, w, logistic=False):
     """
+    Prediction function for test data, where labels are  either -1 or 1
+
     :param tx: input features, size: (N_Test,D)
     :param w: trained weights
-    :param model_type: model type: ["mse", "rmse", "logistic"]
-    :param mode: prediction mode
-    :return: predict_y
+    :param logistic: whether to use logistic regression
+    :rtype: List[int]
+    :return: y_preds
     """
-    z = np.dot(tx, w)
-
-    if model_type == "logistic":
-        p_pred = np.exp(z) / (1 + np.exp(z))
-    else:
-        p_pred = z
-
-    if mode == "train":  # original labels we predict are in {0, 1}
-        predict_y = list(map(lambda x: 0 if x < 0.5 else 1, p_pred))
-    elif mode == "test":  # predictions submitted to platform are in {-1, 1}
-        predict_y = list(map(lambda x: -1 if x < 0.5 else 1, p_pred))
-    else:
-        predict_y = None
-
-    return predict_y
+    logits = np.dot(tx, w)
+    preds = sigmoid(logits) if logistic else logits
+    y_preds = list(map(lambda x: -1 if x < 0.5 else 1, preds))
+    return y_preds
 
 
-def write_results_test(file_path, ids, y_predicts):
-    title = ["Id", "Prediction"]
-    with open(file_path, "w") as f:
-        f.write(",".join(title) + "\n")
-        for test_id, y_predict in zip(ids, y_predicts):
-            f.write(",".join([str(test_id), str(y_predict)]) + "\n")
+def horizontal_voting(fold, model):
+    """
+    Horizontal voting for the test data
+
+    :param fold: fold number for corss validation
+    :param model: model used for learning
+    :rtype: List[int], List[int]
+    :return: ids, y_preds_vote
+    """
+
+    all_y_preds = []
+    for i in range(fold):
+        ids, y_preds = read_test_results(
+            f"./output/{model}_fold_{i}_test_out.csv")
+        all_y_preds.append(y_preds)
+
+    all_y_preds = np.array(all_y_preds)
+
+    pos = np.count_nonzero(all_y_preds == 1, axis=0)
+    neg = np.count_nonzero(all_y_preds == -1, axis=0)
+
+    y_preds_vote = []
+    for pos_vote, neg_vote in zip(pos, neg):
+        if pos_vote >= neg_vote:
+            y_preds_vote.append(1)
+        else:
+            y_preds_vote.append(-1)
+
+    return ids, y_preds_vote
+
+
+def read_test_results(file_path):
+    ids = []
+    y_preds = []
+    with open(file_path, newline='') as csvfile:
+        reader = csv.DictReader(csvfile)
+        for row in reader:
+            ids.append(int(row['Id']))
+            y_preds.append(int(row['Prediction']))
+    return ids, y_preds
 
 
 def sigmoid(t):
-    """apply sigmoid function on t.
+    """
+    apply sigmoid function on t.
 
-    Args:
-        t: scalar or numpy array
-
-    Returns:
-        scalar or numpy array
+    :param t: A scalar or numpy array.
+    :rtype: numpy.ndarray
+    :return: sigmoid(t)
     """
     return 1 / (1 + np.exp(-t))
+
+
+def learning_rate_schedular(learning_rate, epoch, decay_rate=0.9):
+    """
+    Learning rate schedular
+
+    :param learning_rate: initial learning rate
+    :param epoch: current epoch
+    :param decay_rate: decay rate
+    :rtype: float
+    :return: new learning rate
+    """
+    return learning_rate * (decay_rate ** epoch)

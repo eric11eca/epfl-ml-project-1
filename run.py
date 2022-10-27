@@ -1,16 +1,10 @@
-import logging
+import os
 import argparse
 
 from implementations import *
 from scripts.helpers import *
 from scripts.dataset import *
 from scripts.visualization import *
-
-logging.basicConfig(
-    level=logging.DEBUG,
-    format="%(asctime)s:%(levelname)s:%(name)s:%(message)s",
-)
-logger = logging.getLogger("runner")
 
 
 class ModelAggregator:
@@ -22,6 +16,8 @@ class ModelAggregator:
             'ridge': self.ridge_regression,
             "logistic": self.logistic_regression,
             "reg_logistic": self.reg_logistic_regression,
+            "logistic_w_outlier": self.logistic_regression,
+            "reg_logistic_w_outlier": self.reg_logistic_regression,
         }
 
     def mean_square_error_gd(self, tx_train, y_train, tx_val, y_val, weights, params):
@@ -34,13 +30,13 @@ class ModelAggregator:
             max_iters=max_iters,
             gamma=gamma
         )
-        y_pred_train, train_loss = predict_binary(
+        y_pred_train, train_loss = predict_val(
             y_train,
             tx_train,
             w=logits,
             loss_type="mse"
         )
-        y_pred_val, val_loss = predict_binary(
+        y_pred_val, val_loss = predict_val(
             y_val,
             tx_val,
             w=logits,
@@ -68,13 +64,13 @@ class ModelAggregator:
             gamma=gamma,
             batch_size=batch_size
         )
-        y_pred_train, train_loss = predict_binary(
+        y_pred_train, train_loss = predict_val(
             y_train,
             tx_train,
             w=logits,
             loss_type="mse"
         )
-        y_pred_val, val_loss = predict_binary(
+        y_pred_val, val_loss = predict_val(
             y_val,
             tx_val,
             w=logits,
@@ -92,9 +88,9 @@ class ModelAggregator:
 
     def least_squares(self, tx_train, y_train, tx_val, y_val, weights, params):
         logits, loss = least_squares(y_train, tx_train)
-        y_pred_train, train_loss = predict_binary(
+        y_pred_train, train_loss = predict_val(
             y_train, tx_train, logits, loss_type="rmse")
-        y_pred_val, val_loss = predict_binary(
+        y_pred_val, val_loss = predict_val(
             y_val, tx_val, logits, loss_type="rmse")
 
         return{
@@ -109,9 +105,9 @@ class ModelAggregator:
     def ridge_regression(self, tx_train, y_train, tx_val, y_val, weights, params):
         lambda_ = params['lambda']
         logits, loss = ridge_regression(y_train, tx_train, lambda_)
-        y_pred_train, train_loss = predict_binary(
+        y_pred_train, train_loss = predict_val(
             y_train, tx_train, logits, loss_type="rmse")
-        y_pred_val, val_loss = predict_binary(
+        y_pred_val, val_loss = predict_val(
             y_val, tx_val, logits, loss_type="rmse")
 
         return{
@@ -127,11 +123,11 @@ class ModelAggregator:
         max_iters = params["max_iters"]
         gamma = params["gamma"]
         logits, loss = logistic_regression(
-            y_train, tx_train, weights, max_iters, gamma)
-        y_pred_train, train_loss = predict_binary(
+            y_train, tx_train, weights, max_iters, gamma, sgd=True)
+        y_pred_train, train_loss = predict_val(
             y_train, tx_train, logits, loss_type="logistic"
         )
-        y_pred_val, val_loss = predict_binary(
+        y_pred_val, val_loss = predict_val(
             y_val, tx_val, logits, loss_type="logistic"
         )
 
@@ -151,12 +147,13 @@ class ModelAggregator:
         gamma = params["gamma"]
         lambda_ = params["lambda"]
         logits, loss = reg_logistic_regression(
-            y_train, tx_train, weights, lambda_, max_iters, gamma
+            y_train, tx_train, lambda_, weights, max_iters, gamma, sgd=True
         )
-        y_pred_train, train_loss = predict_binary(
+
+        y_pred_train, train_loss = predict_val(
             y_train, tx_train, logits, loss_type="logistic"
         )
-        y_pred_val, val_loss = predict_binary(
+        y_pred_val, val_loss = predict_val(
             y_val, tx_val, logits, loss_type="logistic"
         )
 
@@ -174,7 +171,14 @@ class ModelAggregator:
 
 
 def cross_validation(
-    tx, y, init_w=None, k_fold=10, cv_params=None, model="logistic_regression", save_fig=False, degree=4, feature_names=None,
+    tx, y,
+    init_w=None,
+    k_fold=10,
+    cv_params=None,
+    model="logistix",
+    save_fig=False,
+    degree=4,
+    feature_names=None
 ):
     """
     Cross validation for the given model
@@ -196,7 +200,6 @@ def cross_validation(
 
     model_aggregator = ModelAggregator()
     best_weights = weights
-    
     training_tracker = {}
 
     for k in range(k_fold):
@@ -210,10 +213,7 @@ def cross_validation(
         tx_val = tx[start:end]
         y_val = y[start:end]
 
-        monitor = cv_params["monitor"]
-
-        ## Track Training Stats ##
-        training_tracker[f'fold-{k}'] = {k:[] for k in metric_log.keys()}
+        training_tracker[f'fold-{k}'] = {k: [] for k in metric_log.keys()}
 
         for epoch in range(cv_params["epochs"]):
             print(f"Epoch: {epoch}, num_steps: {cv_params['max_iters']}")
@@ -234,10 +234,12 @@ def cross_validation(
             weights[k] = output_dict["logits"]
             metric_log["train_loss"].append(output_dict["train_loss"])
             metric_log["train_acc"].append(train_acc)
-            
-            training_tracker[f'fold-{k}']["train_loss"].append(output_dict["train_loss"])
+
+            training_tracker[f'fold-{k}']["train_loss"].append(
+                output_dict["train_loss"])
             training_tracker[f'fold-{k}']["train_acc"].append(train_acc)
-            training_tracker[f'fold-{k}']["val_loss"].append(output_dict["val_loss"])
+            training_tracker[f'fold-{k}']["val_loss"].append(
+                output_dict["val_loss"])
             training_tracker[f'fold-{k}']["val_acc"].append(val_acc)
             training_tracker[f'fold-{k}']["val_f1"].append(va_f1)
             training_tracker[f'fold-{k}']["val_precision"].append(va_p)
@@ -252,10 +254,10 @@ def cross_validation(
                 metric_log["val_precision"][k] = va_p
                 metric_log["val_recall"][k] = va_r
                 metric_log["val_loss"][k] = output_dict["val_loss"]
-    
+
     if save_fig:
         exp_name = f'{model.upper()}+degree-{degree}'
-        
+
         for param, v in cv_params.items():
             exp_name += f'+{param}-{v}'
         exp_log_dir = os.path.join('log', exp_name)
@@ -265,12 +267,15 @@ def cross_validation(
         plot_training_stats(kfold_training_tracker=training_tracker,
                             save_path=f'{exp_log_dir}/training_stats.png',
                             title=exp_name)
-        # print('best_weights: ', best_weights)
-        feat_weights_dict = {f:w for f, w in zip(feature_names, np.mean(best_weights, axis=0))} 
-        plot_weights(feat_weights_dict, save_path=f'{exp_log_dir}/feature_weights.png')
+
+        feat_weights_dict = {f: w for f, w in zip(
+            feature_names, np.mean(best_weights, axis=0))}
+        plot_weights(feat_weights_dict,
+                     save_path=f'{exp_log_dir}/feature_weights.png')
+
     for key in metric_log.keys():
         metric_log[key] = np.mean(metric_log[key])
-    
+
     return weights, best_weights, metric_log
 
 
@@ -291,20 +296,17 @@ class Trainer:
         self.params = params
         self.k_fold = k_fold
         self.model = model
+        self.degree = degree
         self.save_fig = save_fig
         self.monitor = params['monitor'][0]
         self.weights = [init_w for i in range(k_fold)]
         self.param_grid = build_parameter_grid(params)
-        # print('===== Params Grid =====')
-        # for param in self.param_grid:
-        #     print(param)
         self.checkpoint = f"./log/{model}_{k_fold}fold_cv_best.json"
-        self.degree=degree
 
-    def train(self, save_fig=False, feature_names=None):
+    def train(self, feature_names=None):
         best_metric = 0.0
         best_params = {}
-        # print('training start')
+
         for config in self.param_grid:
             print(f"Cross validation {self.model} with {config}")
 
@@ -315,7 +317,7 @@ class Trainer:
                 k_fold=self.k_fold,
                 cv_params=config,
                 model=self.model,
-                save_fig=save_fig,
+                save_fig=self.save_fig,
                 degree=self.degree,
                 feature_names=feature_names,
             )
@@ -340,24 +342,25 @@ class Trainer:
         checkpoint = read_json(self.checkpoint)
         best_weights = checkpoint["k_best_weights"]
 
-        if "logistic" in self.model:
-            model_type = "logistic"
-        else:
-            model_type = "linear"
-
         print(f"Test set evaluation")
 
         for k in range(self.k_fold):
-            test_preds = predict_binary_test(
+            test_preds = predict_test(
                 tx=tx_test,
-                w=best_weights[k],
-                model_type=model_type
+                w=np.array(best_weights[k]),
+                logistic=("logistic" in self.model)
             )
-            write_results_test(
-                f"./output/{self.model}_fold_{k}_test_out.csv", ids_test, test_preds)
+            create_csv_submission(ids_test, test_preds,
+                                  f"./output/{self.model}_fold_{k}_test_out.csv")
 
-    def param_selection(self):
-        pass
+        test_ids, test_preds_vote = horizontal_voting(
+            fold=self.k_fold, model=self.model
+        )
+
+        create_csv_submission(test_ids, test_preds_vote,
+                              f"./output/{self.model}_vote_test_out.csv")
+
+        print(f"Finish test set evaluation")
 
 
 if __name__ == "__main__":
@@ -372,27 +375,20 @@ if __name__ == "__main__":
                         help="save figure")
     parser.add_argument("--do_train", default=False, action="store_true")
     parser.add_argument("--do_eval", default=False, action="store_true")
-    parser.add_argument("--imputation", type=str, default="mean",
+    parser.add_argument("--imputation", type=str, default="median",
                         help="Method for missing value imputation")
     parser.add_argument("--degree", type=int, default=4,
                         help="degree of polynomial feature augmentation")
     args = parser.parse_args()
-    
-    ## Setup Hyperparameter Search Space ##
-    gd_gamma = [0.01, 0.05, 0.1, 0.25, 0.5]
-    sgd_gamma = [5e-4, 1e-3, 2e-3, 5e-3, 0.01]
-    batch_size = 100
-    hyper_params = {
-        "batch_size": [batch_size],
-        "monitor": ["val_acc"],
-    }
-    k_fold = args.k_fold
-    
-    logger.info("loading data ...")
-    train_dataset = Dataset(args.data_dir, 
-                            "train", 
-                            imputation_method=args.imputation,
-                            poly_degree=args.degree)
+
+    print("loading data ...")
+    train_dataset = Dataset(
+        data_pth=args.data_dir,
+        data_type="train",
+        poly_degree=args.degree,
+        imputation=args.imputation
+    )
+
     train_dataset.load_data()
 
     random_seed = 42
@@ -404,18 +400,26 @@ if __name__ == "__main__":
     shuffle_idx = np.random.permutation(np.arange(len(labels)))
     shuffled_y = labels[shuffle_idx]
     shuffled_tx = features[shuffle_idx]
-    
+
     feature_names = train_dataset.read_col_names()
 
     init_w = np.random.uniform(low=-2.0, high=2.0, size=features.shape[1])
-
     model = args.model
+    gd_gamma = [0.01, 0.05, 0.1, 0.25, 0.5]
+    sgd_gamma = [1e-5, 1e-4, 1e-3, 0.01, 5e-3]
+    k_fold = args.k_fold
+    batch_size = 100
 
-    if model in ["mse_sgd", "logistic", "reg_logistic"]:
+    hyper_params = {
+        "batch_size": [batch_size],
+        "monitor": ["val_acc"],
+    }
+
+    if model in ["mse_sgd", "logistic", "reg_logistic", "logistic_w_outlier", "reg_logistic_w_outlier"]:
         split_rate = (k_fold - 1) / k_fold
         hyper_params["max_iters"] = [int(
             split_rate * len(shuffled_y) / batch_size)]
-        hyper_params["epochs"] = [30]
+        hyper_params["epochs"] = [10]
         hyper_params["gamma"] = sgd_gamma
     elif model == "mse_gd":
         hyper_params["max_iters"] = [1]
@@ -435,15 +439,24 @@ if __name__ == "__main__":
         init_w=init_w,
         k_fold=k_fold,
         model=model,
+        save_fig=args.save_fig,
         degree=args.degree,
     )
 
     if args.do_train:
-        trainer.train(save_fig=args.save_fig, feature_names = feature_names)
+        trainer.train(
+            feature_names=feature_names)
 
     if args.do_eval:
-        test_dataset = Dataset(args.data_dir, "test")
+        test_dataset = Dataset(
+            data_pth=args.data_dir,
+            data_type="test",
+            poly_degree=args.degree,
+            imputation=args.imputation
+        )
+        test_dataset.load_data()
+
         test_features = test_dataset.data
         test_ids = test_dataset.ids
-        test_dataset.load_data()
+
         trainer.eval(test_features, test_ids)
