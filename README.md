@@ -8,7 +8,7 @@ We tested the code on python 3.9.
 
 ### Requirements
 
-  `numpy`
+  ```numpy```
 
 ### Overview of Codebase
 
