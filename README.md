@@ -28,6 +28,39 @@ Then, evaluate the test data with the best weight of the model and make the subm
 
 For all experiments, we save the best weight of the models with json as `./log/{model}_{k_fold}fold_cv_best.json`. And we used majority voting ensemble to finalize the prediction across the k-fold validation predictions, which is saved as `./output/{model}_test_majority.csv` for submission. 
 
+
+#### Data preprocessing
+
+You can find all the data preprocessing, feature generation, and feature selection steps in `scripts/dataset.py`. Details are as follows.
+
+a) Data preparation:
+
+We conducted one-hot encoding, data imputation, normalization, and outlier filtering.
+
+```
+category_feature(): converted categorical feature into one-hot encoding
+
+data_imputation(): replaced missing values (i.e., -999) into mean, median, each label's mean, each label's median
+
+data_normalization(): normalized each data point by - mean, and / by standard deviation of the features
+
+filter_outliers(): filtered out outliers over mean +/- m * std
+```
+
+b) Feature generation:
+
+We conducted feature augmentation by expanding each feature value into polynomial series.
+
+```
+data_polynomial(): augmented feature by varying degrees
+```
+
+c) Feature selection:
+
+```
+
+```
+
 #### ML Implementations
 
 You can find all the ML methods in `implementations.py`.
@@ -47,34 +80,10 @@ For the performance improvement, we chose the best performance model (i.e., regu
 |-----------|--------------------|-----------|
 | `reg_logistic_dynamic` | `reg_logistic_dynamic` | `y, tx, y_valid, tx_valid, initial_w, max_epoch_iters, gamma, batch_size=1, lambda_, dynamic_lr=True, k_cross=10, half_lr_count=2, early_stop_count=4` |
 
-#### Data preprocessing
-
-You can find all the data preprocessing, feature generation, and feature selection steps in `dataset.py`. Details are as follows.
-
-a) Data preparation:
-
-We conducted one-hot encoding, data imputation, normalization, and outlier filtering.
-
-```
-category_feature(): converted categorical feature into one-hot encoding
-data_imputation(): replaced missing values (i.e., -999) into mean, median, each label's mean, each label's median
-data_normalization(): normalized each data point by - mean, and / by standard deviation of the features
-filter_outliers(): filtered out outliers over mean +/- m * std
-```
-
-b) Feature generation:
-
-We conducted feature augmentation by expanding each feature value into polynomial series.
-
-```
-data_polynomial(): augmented feature by varying degrees
-```
-
-c) Feature selection:
-
-```
-
-```
-
 #### Cross-validation
 
+We tested the models on 5-fold cross validation. 
+
+```
+
+```
