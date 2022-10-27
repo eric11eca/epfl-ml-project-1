@@ -26,6 +26,8 @@ Then, evaluate the test data with the best weight of the model and make the subm
    python run.py --data_dir="./data/test.csv" --model="mse_gd" --k_fold=5 --do_eval --poly_degree=4
    ```
 
+For all experiments, we save the best weight of the models with json as `./log/{model}_{k_fold}fold_cv_best.json`. And we used majority voting ensemble to finalize the predictions across the k-fold validations, which is saved as `./output/{model}_test_majority.json`. 
+
 #### ML Implementations
 
 You can find all the ML methods in `implementations.py`.
@@ -39,5 +41,9 @@ You can find all the ML methods in `implementations.py`.
 |`logistic_regression`| `logistic`| `y, tx, initial_w, max_iters, gamma, batch_size=1, sgd=False` |
 |`reg_logistic_regression`| `reg_logistic` | `y, tx, lambda_, initial_w, max_iters, gamma, batch_size=1, sgd=False` |
 
+#### Data preparation & Feature generation
 
+You can find all the data preprocessing and feature generation (i.e., polynomial feature augmentation) steps in `dataset.py`. 
+
+#### Cross-validation
 
