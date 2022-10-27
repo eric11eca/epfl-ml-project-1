@@ -8,17 +8,23 @@ We tested the code on python 3.9.
 
 ### Requirements
 
-  ```numpy```
+  ```
+  numpy
+  ```
 
 ### Overview of Codebase
 
 You can train the models by run the code `run.py` by 
 
-  `python run.py --data_dir="./data/train.csv" --model="mse_gd" --k_fold=5 --do_train --poly_degree=4`
+  ```
+  python run.py --data_dir="./data/train.csv" --model="mse_gd" --k_fold=5 --do_train --poly_degree=4
+  ```
   
 Then, evaluate the test data with the best weight of the model and make the submission file by `run.py` by
   
-   `python run.py --data_dir="./data/test.csv" --model="mse_gd" --k_fold=5 --do_eval --poly_degree=4`
+   ```
+   python run.py --data_dir="./data/test.csv" --model="mse_gd" --k_fold=5 --do_eval --poly_degree=4
+   ```
 
 #### ML Implementations
 
