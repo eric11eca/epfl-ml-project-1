@@ -4,8 +4,6 @@ Repository for the project 1 - data, code temlpates, and the report.
 
 ## Getting started 
 
-We tested the code on python 3.9. 
-
 ### Requirements
 
   ```
