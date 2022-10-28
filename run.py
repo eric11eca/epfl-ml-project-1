@@ -373,6 +373,7 @@ if __name__ == "__main__":
                         help="number of folds for cross validation")
     parser.add_argument("--save_fig", default=False, action="store_true",
                         help="save figure")
+    parser.add_argument("--poly_feature", default=False, action="store_true")
     parser.add_argument("--do_train", default=False, action="store_true")
     parser.add_argument("--do_eval", default=False, action="store_true")
     parser.add_argument("--imputation", type=str, default="median",
@@ -389,7 +390,8 @@ if __name__ == "__main__":
         imputation=args.imputation
     )
 
-    train_dataset.load_data()
+    train_dataset.load_data(
+        poly=args.poly_feature)
 
     random_seed = 42
     np.random.seed(random_seed)
@@ -406,7 +408,7 @@ if __name__ == "__main__":
     init_w = np.random.uniform(low=-2.0, high=2.0, size=features.shape[1])
     model = args.model
     gd_gamma = [0.01, 0.05, 0.1, 0.25, 0.5]
-    sgd_gamma = [1e-5, 1e-4, 1e-3, 0.01, 5e-3]
+    sgd_gamma = [0.01, 1e-3, 0.05, 1e-4, 5e-3]
     k_fold = args.k_fold
     batch_size = 100
 
@@ -454,7 +456,8 @@ if __name__ == "__main__":
             poly_degree=args.degree,
             imputation=args.imputation
         )
-        test_dataset.load_data()
+        test_dataset.load_data(
+            poly=args.poly_feature)
 
         test_features = test_dataset.data
         test_ids = test_dataset.ids
