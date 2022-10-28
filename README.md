@@ -60,24 +60,21 @@ c) Feature selection:
 
 You can find all the ML methods in `implementations.py`.
  
-| ML | model args          | Parameters |
-|-----------|--------------------|-----------|
-| `mean_squared_error_gd` | `mse_gd`  | `y, tx, initial_w, max_iters, gamma`  | 
-| `mean_squared_error_sgd` | `mse_sgd` | `y, tx, initial_w, max_iters, gamma, batch_size=1`  |
-| `least_squares` | `least_squares`     | `y, tx` |
-| `ridge_regression` | `ridge`  | `y, tx, lambda_` |
-| `logistic_regression` | `logistic`| `y, tx, initial_w, max_iters, gamma, batch_size=1, sgd=False` |
-| `reg_logistic_regression` | `reg_logistic` | `y, tx, lambda_, initial_w, max_iters, gamma, batch_size=1, sgd=False` |
+| ML | model args          | Loss | Parameters |
+|-----------|--------------------|-----------|-----------|
+| `mean_squared_error_gd` | `mse_gd`  | mse | `y, tx, initial_w, max_iters, gamma`  | 
+| `mean_squared_error_sgd` | `mse_sgd` | mse | `y, tx, initial_w, max_iters, gamma, batch_size=1`  |
+| `least_squares` | `least_squares`     | rmse | `y, tx` |
+| `ridge_regression` | `ridge`  | rmse | `y, tx, lambda_` |
+| `logistic_regression` | `logistic`| logistic | `y, tx, initial_w, max_iters, gamma, batch_size=1, sgd=False` |
+| `reg_logistic_regression` | `reg_logistic` | logistic | `y, tx, lambda_, initial_w, max_iters, gamma, batch_size=1, sgd=False` |
 
 For the performance improvement, we chose the best performance model (i.e., regularized logistic regression) with dynamic learning rate.
 
-| ML | model args          | Parameters |
-|-----------|--------------------|-----------|
-| `reg_logistic_dynamic` | `reg_logistic_dynamic` | `y, tx, y_valid, tx_valid, initial_w, max_epoch_iters, gamma, batch_size=1, lambda_, dynamic_lr=True, k_cross=10, half_lr_count=2, early_stop_count=4` |
+| ML | model args          | Loss | Parameters |
+|-----------|--------------------|-----------|-----------|
+| `reg_logistic_dynamic` | `reg_logistic_dynamic` | logistic | `y, tx, y_valid, tx_valid, initial_w, max_epoch_iters, gamma, batch_size=1, lambda_, dynamic_lr=True, k_cross=10, half_lr_count=2, early_stop_count=4` |
 
-##### Loss functions
-
-We calculated the loss with `mse` for linear models and `logistic` for logistic models. 
 
 
 #### Cross-validation
