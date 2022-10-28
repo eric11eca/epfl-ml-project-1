@@ -31,7 +31,6 @@ class Dataset:
 
         self.data_imputation(method=self.imputation)
 
-        self.full_data, self.full_feature_names = self.build_category_feature()
         self.poly_data, self.poly_feature_names = self.data_polynomial()
 
         self.data = self.full_data
@@ -44,6 +43,8 @@ class Dataset:
         self.sanity_check()
 
         self.data_normalization()
+
+        self.full_data, self.full_feature_names = self.build_category_feature()
 
         if self.data_type == 'train':
             self.filter_outliers()
