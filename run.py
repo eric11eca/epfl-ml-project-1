@@ -237,11 +237,12 @@ def cross_validation(
 
         training_tracker[f'fold-{k}'] = {k: [] for k in metric_log.keys()}
 
-        lr_schedular = LearningRateScheduler(
-            epochs=cv_params['epochs'], 
-            initial_learning_rate=cv_params['gamma'],
-            schedule=cv_params["lr_schedule"]
-        )
+        if lr_decay:
+            lr_schedular = LearningRateScheduler(
+                epochs=cv_params['epochs'], 
+                initial_learning_rate=cv_params['gamma'],
+                schedule=cv_params["lr_schedule"]
+            )
 
         for epoch in range(cv_params["epochs"]):
             print(f"Epoch: {epoch}, num_steps: {cv_params['max_iters']}")
