@@ -10,7 +10,7 @@ class Dataset:
         self.poly_degree = poly_degree
         self.imputation = imputation
 
-    def load_data(self, poly=False, discard_cols=None):
+    def load_data(self, poly=True, discard_cols=None):
         """Load the data from the csv file."""
         if discard_cols is None:
             discard_cols = ['prediction', 'id', 'pri_jet_num']
@@ -31,20 +31,16 @@ class Dataset:
 
         self.data_imputation(method=self.imputation)
 
+        self.full_data, self.full_feature_names = self.build_category_feature()
         self.poly_data, self.poly_feature_names = self.data_polynomial()
 
-        self.data = self.full_data
-        self.feature_col_names = self.full_feature_names
-
         if poly:
-            self.data = self.poly_data
-            self.feature_col_names = self.poly_feature_names
+            self.full_data = self.poly_data
+            self.full_feature_names = self.poly_feature_names
 
         self.sanity_check()
 
         self.data_normalization()
-
-        self.full_data, self.full_feature_names = self.build_category_feature()
 
         if self.data_type == 'train':
             self.filter_outliers()
@@ -103,9 +99,15 @@ class Dataset:
 
     def data_normalization(self):
         """Normalize the data, zero-mean and standardization."""
-        mean_data = np.mean(self.data, axis=0)
-        self.data = self.data - mean_data
-        self.data = self.data / np.std(self.data, axis=0)
+        out_cols = [29, 30, 31, 32]
+        in_cols = [i for i in range(np.shape(self.full_data)[1]) if i not in out_cols]
+        extracted = self.full_data[:, in_cols]
+
+        mean_data = np.mean(extracted, axis=0)
+        extracted = extracted - mean_data
+        extracted = extracted / np.std(extracted, axis=0)
+
+        self.full_data = np.c_[extracted, self.category_data]
 
     def build_category_feature(self):
         """Create new features based on the category feature."""
@@ -125,6 +127,7 @@ class Dataset:
 
         full_col_names = self.feature_col_names + self.category_col_names
         full_data = np.c_[self.data, self.category_data]
+
         return full_data, full_col_names
 
     def filter_outliers(self, m=10):
@@ -162,8 +165,12 @@ class Dataset:
 
     def data_polynomial(self, degree=None):
         degree = degree if degree else self.poly_degree
-        if degree <= 1:
-            return self.categorical_data, self.categorical_feature_names
+
+        if degree == 0 :
+            full_data = np.c_[self.data, self.category_data]
+            full_col_names = self.feature_col_names + self.category_col_names
+
+            return full_data, full_col_names
 
         poly_data = []
         poly_col_names = []
