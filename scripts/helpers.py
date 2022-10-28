@@ -9,20 +9,24 @@ from itertools import product
 
 
 def read_file(path, mode="r", **kwargs):
+    """Reads a file and returns its content."""
     with open(path, mode=mode, **kwargs) as f:
         return f.read()
 
 
 def write_file(data, path, mode="w", **kwargs):
+    """Writes data to a file."""
     with open(path, mode=mode, **kwargs) as f:
         f.write(data)
 
 
 def read_json(path, mode="r", **kwargs):
+    """Reads a json file and returns its content."""
     return json.loads(read_file(path, mode=mode, **kwargs))
 
 
 def write_json(data, path):
+    """Writes data to a json file."""
     return write_file(json.dumps(data, indent=2), path)
 
 
@@ -125,39 +129,15 @@ def predict_val(y, tx, w, loss_type="logistic"):
 
     if loss_type == "mse":
         val_loss = 1/2 * np.mean((y - logits)**2)
+    elif loss_type == "rmse":
+        val_loss = np.sqrt(2 * np.mean((y - logits)**2))
     elif loss_type == "logistic":
-        print(y)
         val_loss = np.mean(np.log(1 + np.exp(logits)) - y * logits)
 
     preds = sigmoid(logits) if loss_type == "logistic" else logits
     y_preds = list(map(lambda x: 0 if x < 0.5 else 1, preds))
 
     return y_preds, val_loss
-
-
-def compute_prf_binary(label_y, predict_y):
-    """
-    :param label_y: ground truth labels
-    :param predict_y: model predictions
-    :return: precision, recall, f1
-    """
-    tp, fp, tn, fn = 1e-5, 1e-5, 1e-5, 1e-5
-    for idx, label in enumerate(label_y):
-        if label == 1:
-            if predict_y[idx] == 1:
-                tp += 1
-            else:
-                fn += 1
-        else:
-            if predict_y[idx] == 1:
-                fp += 1
-            else:
-                tn += 1
-    accuracy = (tp + tn) / (tp + fp + tn + fn)
-    precision = tp / (tp + fp)
-    recall = tp / (tp + fn)
-    f1 = 2 * precision * recall / (precision + recall)
-    return accuracy, precision, recall, f1
 
 
 def predict_test(tx, w, logistic=False):
@@ -174,6 +154,39 @@ def predict_test(tx, w, logistic=False):
     preds = sigmoid(logits) if logistic else logits
     y_preds = list(map(lambda x: -1 if x < 0.5 else 1, preds))
     return y_preds
+
+
+
+def compute_metrics(y_true, y_pred):
+    """
+    Compute metrics: accuracy, precision, recall and F1 for binary classification
+    
+    :param y_true: gold truth labels
+    :param y_pred: model predicted labels
+    :rtype: float, float, float, float
+    :return: accuracy, precision, recall, f1
+    """
+    pos_true, neg_true = 0, 0
+    pos_false, neg_false = 0, 0
+    
+    for i, label in enumerate(y_true):
+        if label == 1:
+            if y_pred[i] == 1:
+                pos_true += 1
+            else:
+                pos_false += 1
+        else:
+            if y_pred[i] == 1:
+                neg_false += 1
+            else:
+                neg_true += 1
+
+    precision = pos_true / (pos_true + neg_false)
+    recall = pos_true / (pos_true + pos_false)
+    f1 = 2 * precision * recall / (precision + recall)
+    accuracy = (pos_true + neg_true) / (pos_true + pos_false + neg_true + neg_false)
+
+    return accuracy, precision, recall, f1
 
 
 def horizontal_voting(fold, model):
@@ -208,6 +221,13 @@ def horizontal_voting(fold, model):
 
 
 def read_test_results(file_path):
+    """
+    Read test results from csv file
+    
+    :param file_path: path to the csv file
+    :rtype: List[int], List[int]
+    :return: ids, y_preds
+    """
     ids = []
     y_preds = []
     with open(file_path, newline='') as csvfile:
@@ -228,15 +248,50 @@ def sigmoid(t):
     """
     return 1 / (1 + np.exp(-t))
 
+class LearningRateScheduler:
+    """Learning rate scheduler"""
 
-def learning_rate_schedular(learning_rate, epoch, decay_rate=0.9):
-    """
-    Learning rate schedular
+    def __init__(self, epochs=100, initial_learning_rate=0.01, power=1.0, schedule="linear"):
+        self.epochs = epochs
+        self.initial_learning_rate = initial_learning_rate
+        self.power = power
+        self.schedule = schedule
 
-    :param learning_rate: initial learning rate
-    :param epoch: current epoch
-    :param decay_rate: decay rate
-    :rtype: float
-    :return: new learning rate
-    """
-    return learning_rate * (decay_rate ** epoch)
+    def get_learning_rate(self, epoch):
+        """
+        Get learning rate for the given epoch
+
+        :param epoch: current epoch
+        :rtype: float
+        :return: learning rate
+        """
+        if self.schedule == "linear":
+            return self.linear_decay(epoch)
+        elif self.schedule == "epoch":
+            return self.epoch_decay(epoch)
+        else:
+            raise ValueError("Invalid learning rate schedule")
+    
+    def epoch_decay(self, epoch):
+        """
+        Time-Based Learning Rate Schedule.
+
+        :param epoch: current epoch
+        :rtype: float
+        :return: learning rate
+        """
+        decay = self.initial_learning_rate * self.epoches
+        return self.initial_learning_rate * 1.0 / (1 + decay * epoch)
+    
+    def linear_decay(self, epoch):
+        """
+        Linear Decay Learning Rate Schedule.
+
+        :param epoch: current epoch
+        :rtype: float
+        :return: learning rate
+        """
+        decay = (1 - (epoch / float(self.epochs))) ** self.power
+        updated_eta = self.initial_learning_rate * decay
+        return float(updated_eta)
+
