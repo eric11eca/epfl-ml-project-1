@@ -450,7 +450,7 @@ if __name__ == "__main__":
 
     ids = train_dataset.ids
     labels = train_dataset.labels
-    features = train_dataset.data
+    features = train_dataset.full_data
     shuffle_idx = np.random.permutation(np.arange(len(labels)))
     shuffled_y = labels[shuffle_idx]
     shuffled_tx = features[shuffle_idx]
@@ -524,7 +524,7 @@ if __name__ == "__main__":
         test_dataset.load_data(
             poly=args.poly_feature)
 
-        test_features = test_dataset.data
+        test_features = test_dataset.full_data
         test_ids = test_dataset.ids
 
         trainer.eval(test_features, test_ids)

@@ -134,15 +134,15 @@ class Dataset:
         """
         Filter out outliers over mean +/- m * std>
         """
-        for i in range(self.data.shape[1]):
-            delta = abs(self.data[:, i] - np.mean(self.data[:, i]))
-            mdev = m * np.std(self.data[:, i])
-            self.data = self.data[delta < mdev]
+        for i in range(self.full_data.shape[1]):
+            delta = abs(self.full_data[:, i] - np.mean(self.full_data[:, i]))
+            mdev = m * np.std(self.full_data[:, i])
+            self.full_data = self.full_data[delta < mdev]
             self.labels = self.labels[delta < mdev]
             self.ids = self.ids[delta < mdev]
 
-            assert self.labels.shape[0] == self.data.shape[0]
-            assert self.ids.shape[0] == self.data.shape[0]
+            assert self.labels.shape[0] == self.full_data.shape[0]
+            assert self.ids.shape[0] == self.full_data.shape[0]
 
     def get_cat_mean(self):
         NAN_VALUE = -999
