@@ -75,7 +75,7 @@ For the performance improvement, we chose the best performance model (i.e., regu
 
 #### Cross-validation
     
-We tested the models on 5-fold cross validation for finding the best hyperparameters (i.e., cv_params={gamma, lambda_}), which returns k-final weights, k-best weights, and logs includes training loss, validation logg, train accuracy, validation accuracy, validation f1 score, validation precision, and validation recall.
+We tested the models on 5-fold cross validation for finding the best hyperparameters (i.e., `cv_params={gamma, lambda_}`), which returns k-final weights, k-best weights, and logs includes training loss, validation logg, train accuracy, validation accuracy, validation f1 score, validation precision, and validation recall.
 
 ```
 cross_validation(tx, y, initial_w, k_fold, cv_params, model, save_fig, degree, feature_names, lr_decay)
