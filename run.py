@@ -372,6 +372,9 @@ class Trainer:
                     f"New best {self.monitor} found: {metric_log[self.monitor]}")
                 best_metric = metric_log[self.monitor]
                 best_params = config
+
+                if not os.path.exists('./log'):
+                    os.mkdir('./log')
                 write_json({
                     "best_params": best_params,
                     self.monitor: metric_log[self.monitor],
@@ -399,12 +402,17 @@ class Trainer:
                 w=np.array(best_weights[k]),
                 logistic=("logistic" in self.model)
             )
+                    
+            if not os.path.exists('./output'):
+                os.mkdir('./output')
+
             create_csv_submission(ids_test, test_preds,
                                   f"./output/{self.model_name}_fold_{k}_test_out.csv")
 
         test_ids, test_preds_vote = horizontal_voting(
             fold=self.k_fold, model=self.model
         )
+        
 
         create_csv_submission(test_ids, test_preds_vote,
                               f"./output/{self.model_name}_vote_test_out.csv")
