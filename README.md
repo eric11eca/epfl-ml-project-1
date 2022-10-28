@@ -1,4 +1,4 @@
-# EPFL CS433, Project 1
+# EPFL CS433, Fall 2022 -- Project 1
 
 Repository for the project 1 - data, code temlpates, and the report.
 
