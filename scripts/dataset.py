@@ -166,7 +166,7 @@ class Dataset:
     def data_polynomial(self, degree=None):
         degree = degree if degree else self.poly_degree
 
-        if degree == 0 :
+        if degree <= 1 :
             full_data = np.c_[self.data, self.category_data]
             full_col_names = self.feature_col_names + self.category_col_names
 
