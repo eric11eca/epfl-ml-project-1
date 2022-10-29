@@ -72,7 +72,7 @@ For the performance improvement, we chose the best performance model (i.e., regu
 
 #### Hyperparameter tuning
     
-We validated the models on 5-fold cross validation with grid search for finding the best hyperparameters of each model (`cv_params=gamma,lambda_`). The function `cross_validation()` returns k-final weights, k-best weights, and logs includes training loss, validation loss, train accuracy, validation accuracy, validation f1 score, validation precision, and validation recall. 
+We validated the models on 5-fold cross validation with grid search for finding the best hyperparameters of each model, which includes learning rate and regularization parameter (`cv_params=gamma,lambda_`). The function `cross_validation()` returns k-final weights, k-best weights, and logs includes training loss, validation loss, train accuracy, validation accuracy, validation f1 score, validation precision, and validation recall. 
 
 We additionally implemented dynamic learning rate (`lr_decay`) to adjust the learning rate during training by reducing the learning rate. 
 
