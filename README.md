@@ -83,5 +83,7 @@ cross_validation(tx, y, initial_w, k_fold, cv_params, model, save_fig, degree, f
 ## Authors
 
 Zeming (Eric) Chen
+
 Simin Fan
+
 Soyoung Oh
