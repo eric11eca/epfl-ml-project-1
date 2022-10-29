@@ -80,3 +80,8 @@ We additionally implemented dynamic learning rate (`lr_decay`) to adjust the lea
 cross_validation(tx, y, initial_w, k_fold, cv_params, model, save_fig, degree, feature_names, lr_decay)
 ```
 
+## Authors
+
+Zeming (Eric) Chen
+Simin Fan
+Soyoung Oh
