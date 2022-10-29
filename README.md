@@ -1,6 +1,9 @@
-# EPFL CS433, Fall 2022 -- Project 1
+# EPFL CS433, Fall 2022 -Project 1
 
 Repository for the project 1 - data, code temlpates, and the report.
+AI Crowd Group Name: CFO
+  * Categorical Accuracy:
+  * F1 Score:
 
 ## Getting started 
 
