@@ -24,7 +24,7 @@ Then, evaluate the test data with the best weight of the model and make the subm
    python run.py --data_dir="./data/test.csv" --model="mse_gd" --k_fold=5 --do_eval --poly_degree=4
    ```
 
-For all experiments, we save the best weight of the models with json as `./log/{model}_{k_fold}fold_cv_best.json`. And we used majority voting ensemble to finalize the prediction across the k-fold validation predictions, which is saved as `./output/{model}_vote_test_out.csv` for submission. 
+For all experiments, we save the best weight of the models with json as `./log/{model}_{k_fold}fold_cv_best.json`. And we used majority voting ensemble technique to finalize the prediction across the k-fold validation predictions, which is saved as `./output/{model}_vote_test_out.csv` for submission. 
 
 #### Data preprocessing
 
