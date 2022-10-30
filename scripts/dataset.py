@@ -32,18 +32,17 @@ class Dataset:
         self.data_imputation(method=self.imputation)
         self.full_data, self.full_feature_names = self.build_category_feature()
 
-        if self.data_type == 'train' and not outliers:
-            print("Removing outliers...")
-            self.filter_outliers()
-
-        self.poly_data, self.poly_feature_names = self.data_polynomial()
-
         if poly:
             self.full_data = self.poly_data
             self.full_feature_names = self.poly_feature_names
 
         self.sanity_check()
+
         self.data_normalization()
+
+        if self.data_type == 'train' and not outliers:
+            self.filter_outliers()
+        
 
     def sanity_check(self):
         """Check if the data is valid."""
@@ -132,7 +131,9 @@ class Dataset:
         return full_data, full_col_names
 
     def filter_outliers(self, m=10):
-        """Filter out outliers over mean +/- m * std>"""
+        """
+        Filter out outliers over mean +/- m * std>
+        """
         for i in range(self.full_data.shape[1]):
             delta = abs(self.full_data[:, i] - np.mean(self.full_data[:, i]))
             mdev = m * np.std(self.full_data[:, i])
@@ -142,7 +143,6 @@ class Dataset:
 
             assert self.labels.shape[0] == self.full_data.shape[0]
             assert self.ids.shape[0] == self.full_data.shape[0]
-
 
     def get_cat_mean(self):
         """Get the mean of each category."""
