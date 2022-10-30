@@ -67,7 +67,7 @@ def create_csv_submission(ids, y_pred, name):
                y_pred (predicted class labels)
                name (string name of .csv output file to be created)
     """
-    with open(name, 'w') as csvfile:
+    with open(name, 'w', newline='') as csvfile:
         fieldnames = ['Id', 'Prediction']
         writer = csv.DictWriter(csvfile, delimiter=",", fieldnames=fieldnames)
         writer.writeheader()
@@ -166,8 +166,8 @@ def compute_metrics(y_true, y_pred):
     :rtype: float, float, float, float
     :return: accuracy, precision, recall, f1
     """
-    pos_true, neg_true = 0, 0
-    pos_false, neg_false = 0, 0
+    pos_true, neg_true = 1e-6, 1e-6
+    pos_false, neg_false = 1e-6, 1e-6
     
     for i, label in enumerate(y_true):
         if label == 1:
@@ -280,7 +280,7 @@ class LearningRateScheduler:
         :rtype: float
         :return: learning rate
         """
-        decay = self.initial_learning_rate * self.epoches
+        decay = self.initial_learning_rate * self.epochs
         return self.initial_learning_rate * 1.0 / (1 + decay * epoch)
     
     def linear_decay(self, epoch):
