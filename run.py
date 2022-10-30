@@ -1,5 +1,6 @@
 import os
 import argparse
+from tabnanny import check
 
 from implementations import *
 from scripts.helpers import *
@@ -211,9 +212,7 @@ def cross_validation(
         weights = [np.zeros(tx.shape[1]) for _ in range(k_fold)]
 
     metric_log = {
-        "train_loss": [],
         "val_loss": 1000 * np.ones(k_fold),
-        "train_acc": [],
         "val_acc": np.zeros(k_fold),
         "val_f1": np.zeros(k_fold),
         "val_precision": np.zeros(k_fold),
@@ -251,22 +250,21 @@ def cross_validation(
                 weights=weights[k], params=cv_params
             )
 
-            train_acc, _, _, _ = compute_metrics(
-                y_train, output_dict["y_pred_train"]
-            )
+            # train_acc, _, _, _ = compute_metrics(
+            #     y_train, output_dict["y_pred_train"]
+            # )
             val_acc, val_p, val_r, val_f1 = compute_metrics(
                 y_val, output_dict["y_pred_val"]
             )
 
             print(
                 f"Epoch: {epoch}, val_acc: {val_acc}, val_loss: {output_dict['val_loss']}")
+            
             weights[k] = output_dict["logits"]
-            # metric_log["train_loss"].append(output_dict["train_loss"])
-            # metric_log["train_acc"].append(train_acc)
 
-            training_tracker[f'fold-{k}']["train_loss"].append(
-                output_dict["train_loss"])
-            training_tracker[f'fold-{k}']["train_acc"].append(train_acc)
+            # training_tracker[f'fold-{k}']["train_loss"].append(
+            #     output_dict["train_loss"])
+            # training_tracker[f'fold-{k}']["train_acc"].append(train_acc)
             training_tracker[f'fold-{k}']["val_loss"].append(
                 output_dict["val_loss"])
             training_tracker[f'fold-{k}']["val_acc"].append(val_acc)
@@ -307,7 +305,10 @@ def cross_validation(
                      save_path=f'{exp_log_dir}/feature_weights.png')
 
     for key in metric_log.keys():
-        metric_log[key] = np.mean(metric_log[key])
+        metric_log[key] = {
+            "mean": np.mean(metric_log[key]),
+            "std": np.std(metric_log[key])
+        }
 
     return weights, best_weights, metric_log
 
@@ -367,14 +368,18 @@ class Trainer:
 
             print(f"Finish Validation: {metric_log}")
 
-            if metric_log[self.monitor] > best_metric:
+            if metric_log[self.monitor]["mean"] > best_metric:
                 print(
                     f"New best {self.monitor} found: {metric_log[self.monitor]}")
-                best_metric = metric_log[self.monitor]
+                best_metric = metric_log[self.monitor]["mean"]
                 best_params = config
                 write_json({
                     "best_params": best_params,
-                    self.monitor: metric_log[self.monitor],
+                    "val_acc": metric_log["val_acc"],
+                    "val_f1": metric_log["val_f1"],
+                    "val_precision": metric_log["val_precision"],
+                    "val_recall": metric_log["val_recall"],
+                    "val_loss": metric_log["val_loss"],
                     "k_best_weights": [w.tolist() for w in best_weights]
                 }, self.checkpoint)
 
@@ -403,7 +408,7 @@ class Trainer:
                                   f"./output/{self.model_name}_fold_{k}_test_out.csv")
 
         test_ids, test_preds_vote = horizontal_voting(
-            fold=self.k_fold, model=self.model
+            fold=self.k_fold, model=self.model_name
         )
 
         create_csv_submission(test_ids, test_preds_vote,
@@ -426,6 +431,8 @@ if __name__ == "__main__":
                         help="decay learning rate gradually")
     parser.add_argument("--poly_feature", default=False, action="store_true",
                         help="data uagmentation with polynomial features")
+    parser.add_argument("--outliers", default=False, action="store_true",
+                        help="keep outliers without filtering")
     parser.add_argument("--do_train", default=False, action="store_true")
     parser.add_argument("--do_eval", default=False, action="store_true")
     parser.add_argument("--imputation", type=str, default="median",
@@ -443,14 +450,16 @@ if __name__ == "__main__":
     )
 
     train_dataset.load_data(
-        poly=args.poly_feature)
+        poly=args.poly_feature,
+        outliers=args.outliers
+    )
 
     random_seed = 42
     np.random.seed(random_seed)
 
     ids = train_dataset.ids
     labels = train_dataset.labels
-    features = train_dataset.data
+    features = train_dataset.full_data
     shuffle_idx = np.random.permutation(np.arange(len(labels)))
     shuffled_y = labels[shuffle_idx]
     shuffled_tx = features[shuffle_idx]
@@ -489,12 +498,14 @@ if __name__ == "__main__":
     model_name = args.model
     if args.poly_feature:
         model_name += "_poly"
+    if args.outliers:
+        model_name += "_outliers"
     if args.lr_decay:
         model_name += "_lr-decay"
         hyper_params["lr_schedule"] = ["linear", "epoch"]
         hyper_params["lambda"] = [1e-6]
         hyper_params["epochs"] = [20]
-        hyper_params["gamma"] = [0.05]
+        hyper_params["gamma"] = [0.01]
 
     trainer = Trainer(
         tx=shuffled_tx,
@@ -524,7 +535,7 @@ if __name__ == "__main__":
         test_dataset.load_data(
             poly=args.poly_feature)
 
-        test_features = test_dataset.data
+        test_features = test_dataset.full_data
         test_ids = test_dataset.ids
 
         trainer.eval(test_features, test_ids)
