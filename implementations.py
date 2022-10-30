@@ -1,6 +1,5 @@
 import numpy as np
 
-from tqdm import tqdm
 from scripts.helpers import *
 
 def mse_loss(y, tx, w):
@@ -61,7 +60,7 @@ def mean_squared_error_sgd(
     losses = []
     w = initial_w
 
-    for _ in tqdm(range(max_iters)):
+    for _ in range(max_iters):
         for y_batch, tx_batch in batch_iter(
             y, tx, batch_size=batch_size, num_batches=1, shuffle=True
         ):
@@ -137,7 +136,7 @@ def logistic_regression(
             loss = np.mean(np.log(1 + np.exp(logit)) - y * logit)
             losses.append(loss)
     else:
-        for _ in tqdm(range(max_iters)):
+        for _ in range(max_iters):
             for y_batch, tx_batch in batch_iter(
                 y, tx, batch_size=batch_size, num_batches=1, shuffle=True
             ):
@@ -186,7 +185,7 @@ def reg_logistic_regression(
                            logit)
             losses.append(loss)
     else:
-        for _ in tqdm(range(max_iters)):
+        for _ in range(max_iters):
             for y_batch, tx_batch in batch_iter(
                 y, tx, batch_size=batch_size, num_batches=1, shuffle=True
             ):
