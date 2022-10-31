@@ -73,7 +73,16 @@ For the performance improvement, we chose the best performance model (i.e., regu
 |-----------|--------------------|-----------|-----------|
 | reg_logistic_dynamic | `reg_logistic_dynamic` | logistic | `y, tx, y_valid, tx_valid, initial_w, max_epoch_iters, gamma, batch_size=1, lambda_, dynamic_lr=True, k_cross=10, half_lr_count=2, early_stop_count=4` |
 
-
+#### Best model reproduction
+The `ridge_regression` model acheieves best test accuracy(78.4%), with regularization term (`lambda = 1e-6`), which is chosen during training from grid-search.
+**Training**
+  ```
+  python run.py --model="ridge" --k_fold=5 --do_train --poly_feature --poly_degree=4 --imputaiton median
+  ```
+**Evaluation**
+  ```
+  python run.py --model="ridge" --k_fold=5 --do_eval --poly_feature --poly_degree=4 --imputaiton median
+  ```
 
 #### Hyperparameter tuning
     
