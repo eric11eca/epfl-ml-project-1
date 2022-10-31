@@ -16,7 +16,7 @@ AI Crowd Group Name: CFO
 
 ### Overview of Codebase
 
-You can train the models by run the code `run.py` by 
+Put the `train.csv` and `test.csv` in the directory `data`. Then, You can train the models by run the code `run.py` by 
 
   ```
   python run.py --data_dir="./data/train.csv" --model="mse_gd" --k_fold=5 --do_train --poly_degree=4
