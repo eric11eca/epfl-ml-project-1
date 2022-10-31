@@ -75,6 +75,7 @@ For the performance improvement, we chose the best performance model (i.e., regu
 
 #### Best model reproduction
 The `ridge_regression` model acheieves best test accuracy(78.4%), with regularization term (`lambda = 1e-6`), which is chosen during training from grid-search.
+
 **Training**
   ```
   python run.py --model="ridge" --k_fold=5 --do_train --poly_feature --poly_degree=4 --imputaiton median
